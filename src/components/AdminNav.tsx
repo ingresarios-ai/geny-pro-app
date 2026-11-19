@@ -4,13 +4,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, Webhook } from 'lucide-react';
 
-export function AdminNav() {
+export function AdminNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
 
   const items = [
     { href: '/admin', label: 'Resumen y KPIs', icon: LayoutDashboard, exact: true },
     { href: '/admin/alumnos', label: 'Alumnos y Membresías', icon: Users, exact: false },
-    { href: '/admin/integraciones', label: 'Pasarelas, GHL e IA', icon: Webhook, exact: false },
+    ...(isAdmin
+      ? [{ href: '/admin/integraciones', label: 'Pasarelas, GHL e IA', icon: Webhook, exact: false }]
+      : []),
   ];
 
   return (
@@ -34,3 +36,4 @@ export function AdminNav() {
     </nav>
   );
 }
+

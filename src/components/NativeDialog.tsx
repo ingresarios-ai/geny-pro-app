@@ -90,3 +90,4 @@ export function NativeDialog({ open, onClose, title, wide = false, children }: N
     </dialog>
   );
 }
+

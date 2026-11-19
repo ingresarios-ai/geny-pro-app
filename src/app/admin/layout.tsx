@@ -48,7 +48,7 @@ export default async function AdminLayout({
           </a>
         </div>
 
-        <AdminNav />
+        <AdminNav isAdmin={profile.role === 'admin'} />
 
         <div className="inline">
           <a href="/" className="btn sm ghost">
@@ -62,3 +62,4 @@ export default async function AdminLayout({
     </div>
   );
 }
+

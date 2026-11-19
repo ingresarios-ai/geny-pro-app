@@ -8,7 +8,10 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get('token_hash');
   const type = searchParams.get('type') as EmailOtpType | null;
   const rawNext = searchParams.get('next') ?? '/';
-  const nextPath = rawNext.startsWith('/') ? rawNext : '/';
+  const nextPath =
+    rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.startsWith('/\\')
+      ? rawNext
+      : '/';
 
   const supabase = await createClient();
 
@@ -32,3 +35,4 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.redirect(`${origin}/login?error=enlace_expirado`);
 }
+

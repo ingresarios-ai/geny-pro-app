@@ -23,6 +23,11 @@ function verifyWhopRequest(rawBody: string, headers: Headers, secret: string): b
   const msgSig = headers.get('webhook-signature') || headers.get('svix-signature');
 
   if (msgId && msgTs && msgSig) {
+    const tsSec = Number(msgTs);
+    if (!Number.isFinite(tsSec) || Math.abs(Date.now() / 1000 - tsSec) > 300) {
+      return false;
+    }
+
     const cleanSecret = secret.startsWith('whsec_') ? secret.slice(6) : secret;
     let keyBytes: Buffer;
     try {
@@ -271,3 +276,4 @@ export async function POST(request: Request) {
     userId: result.userId,
   });
 }
+

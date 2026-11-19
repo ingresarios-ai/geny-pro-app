@@ -7,7 +7,11 @@ import { createClient } from '@/lib/supabase/client';
 function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get('next') || '/';
+  const rawNext = searchParams.get('next') || '/';
+  const nextPath =
+    rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.startsWith('/\\')
+      ? rawNext
+      : '/';
   const urlError = searchParams.get('error');
 
   const [mode, setMode] = useState<'password' | 'otp'>('password');
@@ -45,7 +49,7 @@ function LoginFormInner() {
         return;
       }
 
-      router.push(nextPath.startsWith('/') ? nextPath : '/');
+      router.push(nextPath);
       router.refresh();
     } catch {
       setError('No pudimos conectar con el servidor. Intenta de nuevo.');
@@ -161,7 +165,7 @@ function LoginFormInner() {
         return;
       }
 
-      router.push(nextPath.startsWith('/') ? nextPath : '/');
+      router.push(nextPath);
       router.refresh();
     } catch {
       setError('No pudimos verificar el código.');
@@ -389,3 +393,4 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+

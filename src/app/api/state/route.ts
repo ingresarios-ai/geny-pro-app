@@ -50,7 +50,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Estado demasiado grande' }, { status: 413 });
   }
 
-  let body: { state?: Record<string, unknown>; currentModule?: string };
+  let body: { state?: Record<string, unknown>; currentModule?: string; clientDate?: string };
   try {
     body = JSON.parse(text);
   } catch {
@@ -73,7 +73,11 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: access.reason, code: 'membership_inactive' }, { status: 403 });
   }
 
-  const todayStr = new Date().toLocaleDateString('en-CA');
+  const rawClientDate = typeof body.clientDate === 'string' ? body.clientDate.trim() : '';
+  const validClientDate =
+    /^\d{4}-\d{2}-\d{2}$/.test(rawClientDate) &&
+    Math.abs(Date.parse(rawClientDate + 'T12:00:00Z') - Date.now()) <= 36 * 3600 * 1000;
+  const todayStr = validClientDate ? rawClientDate : new Date().toISOString().slice(0, 10);
   const isNewActiveDay = profile.last_active_date !== todayStr;
   const nextActiveDays = (profile.active_days_count || 0) + (isNewActiveDay ? 1 : 0);
 
@@ -124,7 +128,15 @@ export async function PUT(request: Request) {
       : {}),
   };
 
-  await supabase.from('profiles').update(updatedProfileFields).eq('id', user.id);
+  const { error: profErr } = await supabase
+    .from('profiles')
+    .update(updatedProfileFields)
+    .eq('id', user.id);
+
+  if (profErr) {
+    console.error('Error updating profile:', profErr);
+    return NextResponse.json({ error: profErr.message }, { status: 500 });
+  }
 
   // Check and record unlocked milestones + daily activity heartbeat
   const dbAdmin = createAdminClient() || supabase;
@@ -165,6 +177,7 @@ export async function PUT(request: Request) {
         .insert({
           user_id: user.id,
           email: profile.email,
+          event_date: todayStr,
           event_name: evName,
           stage: metrics.stage,
           module: currentModule,
@@ -195,3 +208,4 @@ export async function PUT(request: Request) {
 
   return NextResponse.json({ ok: true, stage: metrics.stage });
 }
+

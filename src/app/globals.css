@@ -676,3 +676,4 @@ table.rd td.st b .rd-t { display: inline-block; min-width: 0; max-width: none; f
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+

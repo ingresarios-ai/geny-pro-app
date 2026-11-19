@@ -149,11 +149,11 @@ export function GenyProApp({
       <div className="toast" id="toast" role="status" hidden />
 
       <Script
-        src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"
+        src="/vendor/lightweight-charts.js"
         strategy="afterInteractive"
       />
       <Script
-        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        src="/vendor/xlsx.full.min.js"
         strategy="afterInteractive"
       />
       <Script
@@ -175,3 +175,4 @@ export function GenyProApp({
     </>
   );
 }
+

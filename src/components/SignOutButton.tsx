@@ -24,3 +24,4 @@ export function SignOutButton({ className = 'btn sm ghost' }: { className?: stri
     </button>
   );
 }
+

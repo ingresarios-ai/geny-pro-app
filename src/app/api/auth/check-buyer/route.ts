@@ -1,7 +1,51 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 
+const ipBuckets = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 12;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function checkIpRateLimit(request: Request): boolean {
+  const fwd = request.headers.get('x-forwarded-for');
+  const ip =
+    (fwd ? fwd.split(',')[0].trim() : '') ||
+    request.headers.get('x-real-ip')?.trim() ||
+    'local';
+  const now = Date.now();
+
+  if (ipBuckets.size > 500) {
+    for (const [key, bucket] of ipBuckets) {
+      if (bucket.resetAt <= now) {
+        ipBuckets.delete(key);
+      }
+    }
+  }
+
+  const cur = ipBuckets.get(ip);
+  if (!cur || cur.resetAt <= now) {
+    ipBuckets.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (cur.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+
+  cur.count += 1;
+  return true;
+}
+
 export async function POST(request: Request) {
+  if (!checkIpRateLimit(request)) {
+    return NextResponse.json(
+      {
+        allowed: false,
+        reason: 'Demasiados intentos. Espera un minuto e intenta de nuevo.',
+      },
+      { status: 429 }
+    );
+  }
+
   let body: { email?: string } = {};
   try {
     body = await request.json();

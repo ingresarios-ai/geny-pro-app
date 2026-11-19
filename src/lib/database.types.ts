@@ -539,6 +539,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          event_date: string
           event_name: string
           ghl_error: string | null
           ghl_sent: boolean
@@ -552,6 +553,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
+          event_date?: string
           event_name: string
           ghl_error?: string | null
           ghl_sent?: boolean
@@ -565,6 +567,7 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
+          event_date?: string
           event_name?: string
           ghl_error?: string | null
           ghl_sent?: boolean

@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { createClient, hasServiceRole } from '@/lib/supabase/server';
 import { IntegrationsClient } from '@/components/IntegrationsClient';
 
@@ -10,14 +11,23 @@ export default async function AdminIntegracionesPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: viewer } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user?.id || '')
+    .maybeSingle();
+
+  if (viewer?.role !== 'admin') {
+    redirect('/admin');
+  }
+
   const hdrs = await headers();
   const host = hdrs.get('x-forwarded-host') || hdrs.get('host') || 'localhost:3000';
   const proto = hdrs.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   const detectedOrigin =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || `${proto}://${host}`;
 
-  const [{ data: viewer }, { data: settings }, { data: logs }] = await Promise.all([
-    supabase.from('profiles').select('role').eq('id', user?.id || '').maybeSingle(),
+  const [{ data: settings }, { data: logs }] = await Promise.all([
     supabase.from('app_settings').select('*').eq('id', 1).maybeSingle(),
     supabase
       .from('webhook_logs')
@@ -25,6 +35,19 @@ export default async function AdminIntegracionesPage() {
       .order('created_at', { ascending: false })
       .limit(80),
   ]);
+
+  const secretFlags = {
+    hasHotmartHottok: Boolean(settings?.hotmart_hottok),
+    hasWhopSecret: Boolean(settings?.whop_webhook_secret),
+  };
+
+  const maskedSettings = settings
+    ? {
+        ...settings,
+        hotmart_hottok: '',
+        whop_webhook_secret: '',
+      }
+    : null;
 
   const envStatus = {
     supabaseServiceRole: hasServiceRole(),
@@ -34,11 +57,13 @@ export default async function AdminIntegracionesPage() {
 
   return (
     <IntegrationsClient
-      isAdmin={viewer?.role === 'admin'}
+      isAdmin={true}
       appOrigin={detectedOrigin}
-      initialSettings={settings}
+      initialSettings={maskedSettings}
+      secretFlags={secretFlags}
       initialLogs={logs || []}
       envStatus={envStatus}
     />
   );
 }
+

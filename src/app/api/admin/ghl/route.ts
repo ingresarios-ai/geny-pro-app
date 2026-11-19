@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { dispatchToGhl } from '@/lib/ghl';
+import { STATE_SUMMARY_COLS } from '@/lib/membership';
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -181,30 +182,39 @@ export async function POST(request: Request) {
     const [{ data: profiles }, { data: memberships }, { data: states }] = await Promise.all([
       db.from('profiles').select('*').eq('role', 'student').limit(200),
       db.from('memberships').select('*'),
-      db.from('user_app_state').select('*'),
+      db.from('user_app_state').select(STATE_SUMMARY_COLS),
     ]);
 
     const memMap = new Map((memberships || []).map((m) => [m.user_id, m]));
     const stMap = new Map((states || []).map((s) => [s.user_id, s]));
 
+    const eligible = (profiles || [])
+      .map((p) => ({ p, m: memMap.get(p.id) }))
+      .filter(({ m }) => m && ['active', 'past_due'].includes(m.status));
+
     let sentCount = 0;
     let failedCount = 0;
 
-    for (const p of profiles || []) {
-      const m = memMap.get(p.id);
-      if (!m || !['active', 'past_due'].includes(m.status)) continue;
-      const res = await dispatchToGhl({
-        db,
-        settings: effectiveSettings,
-        profile: p,
-        membership: m,
-        stateSummary: stMap.get(p.id),
-        eventName: 'sync_manual',
-        category: 'manual',
-        forceSend: true,
-      });
-      if (res.sent) sentCount++;
-      else failedCount++;
+    for (let i = 0; i < eligible.length; i += 5) {
+      const chunk = eligible.slice(i, i + 5);
+      const results = await Promise.all(
+        chunk.map(({ p, m }) =>
+          dispatchToGhl({
+            db,
+            settings: effectiveSettings,
+            profile: p,
+            membership: m,
+            stateSummary: stMap.get(p.id),
+            eventName: 'sync_manual',
+            category: 'manual',
+            forceSend: true,
+          })
+        )
+      );
+      for (const res of results) {
+        if (res.sent) sentCount++;
+        else failedCount++;
+      }
     }
 
     return NextResponse.json({ ok: true, sentCount, failedCount });
@@ -212,3 +222,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 });
 }
+

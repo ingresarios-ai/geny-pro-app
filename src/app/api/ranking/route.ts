@@ -87,3 +87,4 @@ export async function DELETE() {
   await supabase.from('ranking_entries').delete().eq('user_id', user.id);
   return NextResponse.json({ ok: true });
 }
+

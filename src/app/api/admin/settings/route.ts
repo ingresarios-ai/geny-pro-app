@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/database.types';
 
 export async function PUT(request: Request) {
   const supabase = await createClient();
@@ -15,7 +16,10 @@ export async function PUT(request: Request) {
     .maybeSingle();
 
   if (!profile || profile.role !== 'admin') {
-    return NextResponse.json({ error: 'Solo Administradores pueden modificar integraciones' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'Solo Administradores pueden modificar integraciones' },
+      { status: 403 }
+    );
   }
 
   let body: Record<string, unknown>;
@@ -25,15 +29,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 });
   }
 
-  const patch = {
+  const patch: Database['public']['Tables']['app_settings']['Update'] = {
     ghl_enabled: Boolean(body.ghl_enabled),
     ghl_webhook_url: String(body.ghl_webhook_url ?? '').trim(),
     ghl_send_milestones: body.ghl_send_milestones !== false,
     ghl_send_membership_events: body.ghl_send_membership_events !== false,
     hotmart_enabled: body.hotmart_enabled !== false,
-    hotmart_hottok: String(body.hotmart_hottok ?? '').trim(),
     whop_enabled: body.whop_enabled !== false,
-    whop_webhook_secret: String(body.whop_webhook_secret ?? '').trim(),
     renewal_url_hotmart: String(body.renewal_url_hotmart ?? '').trim(),
     renewal_url_whop: String(body.renewal_url_whop ?? '').trim(),
     support_whatsapp_url: String(body.support_whatsapp_url ?? '').trim(),
@@ -45,6 +47,20 @@ export async function PUT(request: Request) {
     ),
     ai_model: String(body.ai_model || 'claude-haiku-4-5').trim(),
   };
+
+  const nextHottok = String(body.hotmart_hottok ?? '').trim();
+  if (body.clear_hotmart_hottok === true) {
+    patch.hotmart_hottok = '';
+  } else if (nextHottok !== '') {
+    patch.hotmart_hottok = nextHottok;
+  }
+
+  const nextWhopSecret = String(body.whop_webhook_secret ?? '').trim();
+  if (body.clear_whop_secret === true) {
+    patch.whop_webhook_secret = '';
+  } else if (nextWhopSecret !== '') {
+    patch.whop_webhook_secret = nextWhopSecret;
+  }
 
   const { error } = await supabase.from('app_settings').update(patch).eq('id', 1);
   if (error) {

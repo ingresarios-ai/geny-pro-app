@@ -166,30 +166,55 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Falta userId' }, { status: 400 });
   }
 
+  const { data: curProf } = await db
+    .from('profiles')
+    .select('email')
+    .eq('id', body.userId)
+    .maybeSingle();
+
+  const normalizedNewEmail = body.email ? body.email.trim().toLowerCase() : '';
+  const wantsEmailChange = Boolean(normalizedNewEmail && normalizedNewEmail !== curProf?.email);
+  const wantsPwdChange = Boolean(body.newPassword && body.newPassword.trim().length > 0);
+
+  if ((wantsEmailChange || wantsPwdChange) && !adminClient) {
+    return NextResponse.json(
+      {
+        error:
+          'Configura SUPABASE_SERVICE_ROLE_KEY en el servidor para cambiar el correo o la contraseña de un alumno.',
+      },
+      { status: 400 }
+    );
+  }
+
+  if (wantsPwdChange && body.newPassword!.length < 8) {
+    return NextResponse.json(
+      { error: 'La contraseña debe tener al menos 8 caracteres.' },
+      { status: 400 }
+    );
+  }
+
   // Handle email or password update in Supabase Auth if requested
-  if ((body.email || body.newPassword) && adminClient) {
+  if ((wantsEmailChange || wantsPwdChange) && adminClient) {
     const authPatch: { email?: string; password?: string; email_confirm?: boolean } = {};
-    if (body.email) {
-      authPatch.email = body.email.trim().toLowerCase();
+    if (wantsEmailChange) {
+      authPatch.email = normalizedNewEmail;
       authPatch.email_confirm = true;
     }
-    if (body.newPassword && body.newPassword.length >= 6) {
-      authPatch.password = body.newPassword;
+    if (wantsPwdChange) {
+      authPatch.password = body.newPassword!;
     }
-    if (Object.keys(authPatch).length > 0) {
-      const { error: authErr } = await adminClient.auth.admin.updateUserById(
-        body.userId,
-        authPatch
-      );
-      if (authErr) {
-        return NextResponse.json({ error: authErr.message }, { status: 400 });
-      }
+    const { error: authErr } = await adminClient.auth.admin.updateUserById(
+      body.userId,
+      authPatch
+    );
+    if (authErr) {
+      return NextResponse.json({ error: authErr.message }, { status: 400 });
     }
   }
 
   // Update profile fields
   const profilePatch: Database['public']['Tables']['profiles']['Update'] = {};
-  if (body.email) profilePatch.email = body.email.trim().toLowerCase();
+  if (wantsEmailChange) profilePatch.email = normalizedNewEmail;
   if (body.fullName !== undefined) profilePatch.full_name = body.fullName.trim() || 'Trader';
   if (body.phone !== undefined) profilePatch.phone = body.phone.trim();
   if (body.country !== undefined) profilePatch.country = body.country.trim();
@@ -208,6 +233,7 @@ export async function PATCH(request: Request) {
 
   // Update membership fields
   if (
+    wantsEmailChange ||
     body.status !== undefined ||
     body.source !== undefined ||
     body.planName !== undefined ||
@@ -228,6 +254,7 @@ export async function PATCH(request: Request) {
         status: nextStatus,
         source: body.source ?? curMem?.source ?? 'manual',
         plan_name: body.planName ?? curMem?.plan_name ?? 'Geny Pro',
+        buyer_email: wantsEmailChange ? normalizedNewEmail : curMem?.buyer_email ?? curProf?.email ?? null,
         expires_at: body.expiresAt !== undefined ? body.expiresAt || null : curMem?.expires_at ?? null,
         grace_until:
           body.graceUntil !== undefined ? body.graceUntil || null : curMem?.grace_until ?? null,

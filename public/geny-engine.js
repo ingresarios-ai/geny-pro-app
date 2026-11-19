@@ -148,22 +148,30 @@ let S=BOOT.initialState&&BOOT.initialState.v?BOOT.initialState:null;
 if(!S){try{S=JSON.parse(localStorage.getItem(LS_KEY))}catch(e){}}
 if(!S||!S.v)S=seed();
 
+let lastSentJson=BOOT.initialState&&BOOT.initialState.v?JSON.stringify(BOOT.initialState):'';
+let lastSentMod='';
+let lastModAt=0;
+
 const store={ref:true,busy:false,again:false,t:null};
 function save(){
   try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}
   clearTimeout(store.t);store.t=setTimeout(flush,650);
 }
 async function flush(){
+  const curJson=JSON.stringify(S);
+  const curMod=typeof route==='function'?route():'inicio';
+  if(curJson===lastSentJson&&(curMod===lastSentMod||Date.now()-lastModAt<120000))return;
   if(store.busy){store.again=true;return}
   store.busy=true;
   try{
     const r=await fetch('/api/state',{
       method:'PUT',
       headers:{'content-type':'application/json'},
-      body:JSON.stringify({state:S,currentModule:typeof route==='function'?route():'inicio'})
+      body:JSON.stringify({state:S,currentModule:curMod,clientDate:today()})
     });
     if(r.status===401)location.href='/login';
     else if(r.status===403)location.href='/renovar';
+    else if(r.ok){lastSentJson=curJson;lastSentMod=curMod;lastModAt=Date.now();}
   }catch(e){console.warn('sync',e)}
   store.busy=false;if(store.again){store.again=false;flush()}
 }
@@ -1170,11 +1178,12 @@ VIEWS.replay=function(){
   <p class="risk">Simulación educativa con datos históricos retrasados. Los resultados en replay no garantizan resultados en vivo; operar implica riesgo de pérdida.</p>`;
 };
 
-function mountReplay(){
+function mountReplay(retry=0){
   if(!R.bars.length)setBars(sampleBars(),'DEMO','Datos simulados (velas de 5 min)',900);
   if(CH){try{CH.chart.remove()}catch(e){}CH=null}
-  const box=$('#chart');
-  if(!window.LightweightCharts){$('#chartMsg').hidden=false;$('#chartMsg').textContent='No se pudo cargar el graficador. Recarga la página.';return}
+  const box=$('#chart');if(!box)return;
+  if(!window.LightweightCharts){const msg=$('#chartMsg');if(msg){msg.hidden=false;msg.textContent=retry<25?'Cargando graficador…':'No se pudo cargar el graficador. Recarga la página.'}if(retry<25)setTimeout(()=>{if(route()==='replay')mountReplay(retry+1)},200);return}
+  const msg=$('#chartMsg');if(msg)msg.hidden=true;
   const chart=LightweightCharts.createChart(box,{autoSize:true,layout:{background:{type:'solid',color:'#0A0F15'},textColor:'#8395A8',fontFamily:'DM Mono, monospace'},
     grid:{vertLines:{color:'#121B25'},horzLines:{color:'#121B25'}},crosshair:{mode:0},rightPriceScale:{borderColor:'#1E2B38'},
     timeScale:{borderColor:'#1E2B38',timeVisible:R.tf<86400,rightOffset:12,shiftVisibleRangeOnNewBar:true}});
@@ -1811,6 +1820,10 @@ document.addEventListener('change',e=>{
   if(id==='rd-uni')p.uni=e.target.value;else if(id==='rd-noe')p.noE=e.target.checked;else p.lista=e.target.value.toUpperCase().slice(0,300);
   save();render()});
 
-  addEventListener('hashchange', () => setTimeout(save, 500));
+  addEventListener('hashchange', () => {
+    if (Date.now() - lastModAt >= 120000) {
+      setTimeout(flush, 500);
+    }
+  });
   render();
 };

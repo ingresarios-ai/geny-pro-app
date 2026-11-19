@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { evaluateMembershipAccess } from '@/lib/membership';
+import { evaluateMembershipAccess, STATE_SUMMARY_COLS } from '@/lib/membership';
 import {
   Users,
   AlertTriangle,
@@ -41,7 +41,7 @@ export default async function AdminDashboardPage() {
   ] = await Promise.all([
     supabase.from('profiles').select('*').order('created_at', { ascending: false }),
     supabase.from('memberships').select('*'),
-    supabase.from('user_app_state').select('*'),
+    supabase.from('user_app_state').select(STATE_SUMMARY_COLS),
     supabase.from('pending_memberships').select('*').is('claimed_by', null),
     supabase.from('user_events').select('*').order('created_at', { ascending: false }).limit(20),
     supabase.from('ai_usage_logs').select('usage_date, input_tokens, output_tokens').gte('usage_date', thirtyDaysAgoIso),
@@ -394,3 +394,4 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
+

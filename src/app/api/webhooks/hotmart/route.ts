@@ -156,6 +156,7 @@ export async function POST(request: Request) {
     | null = null;
   let internalEventName = 'membresia_actualizada';
   let graceUntil: string | null = null;
+  let cancellationNote: string | undefined;
 
   if (['PURCHASE_APPROVED', 'PURCHASE_COMPLETE'].includes(eventType)) {
     mappedStatus = 'active';
@@ -167,9 +168,45 @@ export async function POST(request: Request) {
   } else if (['PURCHASE_REFUNDED', 'PURCHASE_PROTEST', 'PURCHASE_CHARGEBACK'].includes(eventType)) {
     mappedStatus = 'refunded';
     internalEventName = 'membresia_reembolsada';
-  } else if (['PURCHASE_CANCELED', 'SUBSCRIPTION_CANCELLATION'].includes(eventType)) {
+  } else if (eventType === 'PURCHASE_CANCELED') {
     mappedStatus = 'canceled';
     internalEventName = 'membresia_cancelada';
+  } else if (eventType === 'SUBSCRIPTION_CANCELLATION') {
+    let existingExpiresAt: string | null = null;
+    if (subCode) {
+      const { data: memBySub } = await admin
+        .from('memberships')
+        .select('expires_at')
+        .eq('external_subscription_id', subCode)
+        .maybeSingle();
+      existingExpiresAt = memBySub?.expires_at ?? null;
+    }
+    if (!existingExpiresAt) {
+      const { data: profByEmail } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      if (profByEmail) {
+        const { data: memByUser } = await admin
+          .from('memberships')
+          .select('expires_at')
+          .eq('user_id', profByEmail.id)
+          .maybeSingle();
+        existingExpiresAt = memByUser?.expires_at ?? null;
+      }
+    }
+    const effectiveEnd = nextChargeIso || existingExpiresAt || null;
+    if (effectiveEnd && new Date(effectiveEnd).getTime() > Date.now()) {
+      mappedStatus = 'active';
+      nextChargeIso = effectiveEnd;
+      internalEventName = 'renovacion_cancelada';
+      cancellationNote =
+        'Suscripción cancelada en Hotmart; acceso activo hasta fin del periodo pagado';
+    } else {
+      mappedStatus = 'canceled';
+      internalEventName = 'membresia_cancelada';
+    }
   } else if (eventType === 'PURCHASE_EXPIRED') {
     mappedStatus = 'expired';
     internalEventName = 'membresia_vencida';
@@ -202,6 +239,7 @@ export async function POST(request: Request) {
     externalOrderId: txId,
     expiresAt: mappedStatus === 'active' ? nextChargeIso : undefined,
     graceUntil,
+    notes: cancellationNote,
     eventName: internalEventName,
     appUrl: process.env.NEXT_PUBLIC_APP_URL || originUrl,
   });
@@ -229,3 +267,4 @@ export async function POST(request: Request) {
     userId: result.userId,
   });
 }
+

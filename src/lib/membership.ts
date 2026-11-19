@@ -1,5 +1,8 @@
 import type { MembershipRow, ProfileRow } from '@/lib/database.types';
 
+export const STATE_SUMMARY_COLS =
+  'user_id, is_demo, diag_completed, reto21_closed_days, trades_count, total_pnl, win_rate, plan_adherence, movements_count, savings_rate, goals_count, checkins_count, mindset_sessions_count, saved_strategies_count, radar_scans_count, ideas_built_count, geny_messages_count, general_score, updated_at' as const;
+
 export interface MembershipAccessEvaluation {
   allowed: boolean;
   isGracePeriod: boolean;
@@ -316,3 +319,4 @@ export function extractMetricsFromState(
     unlockedMilestones,
   };
 }
+

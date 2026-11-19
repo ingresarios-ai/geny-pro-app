@@ -172,3 +172,4 @@ export async function dispatchToGhl(params: GhlDispatchParams): Promise<{
 
   return { sent: delivered, httpStatus, error: errorMsg };
 }
+

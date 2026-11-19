@@ -19,12 +19,17 @@ export function IntegrationsClient({
   isAdmin,
   appOrigin,
   initialSettings,
+  secretFlags,
   initialLogs,
   envStatus,
 }: {
   isAdmin: boolean;
   appOrigin: string;
   initialSettings: AppSettingsRow | null;
+  secretFlags: {
+    hasHotmartHottok: boolean;
+    hasWhopSecret: boolean;
+  };
   initialLogs: WebhookLogRow[];
   envStatus: {
     supabaseServiceRole: boolean;
@@ -50,13 +55,9 @@ export function IntegrationsClient({
   const [hotmartEnabled, setHotmartEnabled] = useState(
     initialSettings?.hotmart_enabled ?? true
   );
-  const [hotmartHottok, setHotmartHottok] = useState(
-    initialSettings?.hotmart_hottok || ''
-  );
+  const [hotmartHottok, setHotmartHottok] = useState('');
   const [whopEnabled, setWhopEnabled] = useState(initialSettings?.whop_enabled ?? true);
-  const [whopSecret, setWhopSecret] = useState(
-    initialSettings?.whop_webhook_secret || ''
-  );
+  const [whopSecret, setWhopSecret] = useState('');
   const [graceDays, setGraceDays] = useState(initialSettings?.grace_days ?? 3);
 
   const [renewHotmart, setRenewHotmart] = useState(
@@ -136,6 +137,8 @@ export function IntegrationsClient({
       const data = await res.json();
       if (!res.ok) setErrorMsg(data.error || 'No se pudo guardar la configuración');
       else {
+        setHotmartHottok('');
+        setWhopSecret('');
         setFeedback('Configuración guardada y aplicada en toda la plataforma.');
         router.refresh();
       }
@@ -387,7 +390,11 @@ export function IntegrationsClient({
                     type="password"
                     value={hotmartHottok}
                     onChange={(e) => setHotmartHottok(e.target.value)}
-                    placeholder="Pega tu Hottok de Hotmart"
+                    placeholder={
+                      secretFlags.hasHotmartHottok
+                        ? '•••••••• (Guardado — escribe para reemplazar)'
+                        : 'Pega tu Hottok de Hotmart'
+                    }
                     disabled={!isAdmin}
                   />
                 </label>
@@ -430,7 +437,11 @@ export function IntegrationsClient({
                     type="password"
                     value={whopSecret}
                     onChange={(e) => setWhopSecret(e.target.value)}
-                    placeholder="whsec_..."
+                    placeholder={
+                      secretFlags.hasWhopSecret
+                        ? '•••••••• (Guardado — escribe para reemplazar)'
+                        : 'whsec_...'
+                    }
                     disabled={!isAdmin}
                   />
                 </label>
@@ -774,3 +785,4 @@ export function IntegrationsClient({
     </div>
   );
 }
+

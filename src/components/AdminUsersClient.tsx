@@ -64,13 +64,15 @@ const COUNTRIES = [
 export function AdminUsersClient({
   initialRecords,
   isAdmin,
+  initialStatusFilter = 'all',
 }: {
   initialRecords: AdminUserRecord[];
   isAdmin: boolean;
+  initialStatusFilter?: string;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [stageFilter, setStageFilter] = useState('all');
 
@@ -703,3 +705,4 @@ export function AdminUsersClient({
     </div>
   );
 }
+

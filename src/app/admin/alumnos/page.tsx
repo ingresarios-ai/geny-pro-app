@@ -1,9 +1,19 @@
 import { createClient } from '@/lib/supabase/server';
+import { STATE_SUMMARY_COLS } from '@/lib/membership';
 import { AdminUsersClient, type AdminUserRecord } from '@/components/AdminUsersClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminAlumnosPage() {
+const VALID_FILTERS = ['active', 'past_due', 'risk', 'pending_claim', 'inactive'];
+
+export default async function AdminAlumnosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
+  const sp = await searchParams;
+  const initialFilter = sp.filter && VALID_FILTERS.includes(sp.filter) ? sp.filter : 'all';
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,7 +29,7 @@ export default async function AdminAlumnosPage() {
     supabase.from('profiles').select('role').eq('id', user?.id || '').maybeSingle(),
     supabase.from('profiles').select('*').order('created_at', { ascending: false }),
     supabase.from('memberships').select('*'),
-    supabase.from('user_app_state').select('*'),
+    supabase.from('user_app_state').select(STATE_SUMMARY_COLS),
     supabase
       .from('pending_memberships')
       .select('*')
@@ -96,6 +106,8 @@ export default async function AdminAlumnosPage() {
     <AdminUsersClient
       initialRecords={records}
       isAdmin={viewerProfile?.role === 'admin'}
+      initialStatusFilter={initialFilter}
     />
   );
 }
+
