@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { provisionOrUpdateMember } from '@/lib/provisioning';
+import { resolvePublicAppUrl } from '@/lib/app-url';
 import type { Database } from '@/lib/database.types';
 
 export const maxDuration = 60;
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
       sendInviteEmail: item.sendInviteEmail !== false,
       eventName: 'alta_manual_admin',
       updatedByUserId: auth.user.id,
-      appUrl: process.env.NEXT_PUBLIC_APP_URL || originUrl,
+      appUrl: resolvePublicAppUrl(originUrl),
     });
 
     results.push({

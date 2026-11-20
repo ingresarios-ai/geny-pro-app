@@ -15,6 +15,30 @@ import {
   Eye,
 } from 'lucide-react';
 
+const GEMINI_MODELS = [
+  {
+    value: 'gemini-2.5-flash',
+    label: 'Gemini 2.5 Flash (Recomendado Google · rápido y económico)',
+  },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Razonamiento avanzado)' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (Ultra económico)' },
+  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)' },
+] as const;
+
+const CLAUDE_MODELS = [
+  {
+    value: 'claude-haiku-4-5',
+    label: 'Claude Haiku 4.5 (Recomendado Anthropic · rápido y económico)',
+  },
+  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5 (Alta precisión)' },
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+] as const;
+
+const ALL_PRESET_MODELS: string[] = [
+  ...GEMINI_MODELS.map((m) => m.value),
+  ...CLAUDE_MODELS.map((m) => m.value),
+];
+
 export function IntegrationsClient({
   isAdmin,
   appOrigin,
@@ -33,6 +57,7 @@ export function IntegrationsClient({
   initialLogs: WebhookLogRow[];
   envStatus: {
     supabaseServiceRole: boolean;
+    geminiApiKey: boolean;
     anthropicApiKey: boolean;
     fmpApiKey: boolean;
   };
@@ -72,9 +97,13 @@ export function IntegrationsClient({
   const [aiModel, setAiModel] = useState(
     initialSettings?.ai_model || 'claude-haiku-4-5'
   );
+  const [customModelMode, setCustomModelMode] = useState(
+    () => !ALL_PRESET_MODELS.includes(initialSettings?.ai_model || 'claude-haiku-4-5')
+  );
   const [aiLimit, setAiLimit] = useState(
     initialSettings?.default_ai_daily_limit ?? 40
   );
+  const anyAiConnected = envStatus.geminiApiKey || envStatus.anthropicApiKey;
 
   // Simulator state
   const [simProvider, setSimProvider] = useState<'hotmart' | 'whop'>('hotmart');
@@ -264,10 +293,40 @@ export function IntegrationsClient({
             {envStatus.supabaseServiceRole ? 'Conectada' : 'Pendiente agregar en Vercel'}
           </span>
 
-          <span className={`badge ${envStatus.anthropicApiKey ? 'active' : 'past_due'}`}>
-            {envStatus.anthropicApiKey ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-            ANTHROPIC_API_KEY (Chat Geny):{' '}
-            {envStatus.anthropicApiKey ? 'Conectada' : 'Pendiente en Vercel'}
+          <span
+            className={`badge ${
+              envStatus.geminiApiKey ? 'active' : anyAiConnected ? 'paused' : 'past_due'
+            }`}
+          >
+            {envStatus.geminiApiKey ? (
+              <CheckCircle2 size={14} />
+            ) : anyAiConnected ? null : (
+              <AlertTriangle size={14} />
+            )}
+            GEMINI_API_KEY (Google Gemini):{' '}
+            {envStatus.geminiApiKey
+              ? 'Conectada'
+              : anyAiConnected
+                ? 'Opcional (Claude activa)'
+                : 'Pendiente en Vercel'}
+          </span>
+
+          <span
+            className={`badge ${
+              envStatus.anthropicApiKey ? 'active' : anyAiConnected ? 'paused' : 'past_due'
+            }`}
+          >
+            {envStatus.anthropicApiKey ? (
+              <CheckCircle2 size={14} />
+            ) : anyAiConnected ? null : (
+              <AlertTriangle size={14} />
+            )}
+            ANTHROPIC_API_KEY (Claude):{' '}
+            {envStatus.anthropicApiKey
+              ? 'Conectada'
+              : anyAiConnected
+                ? 'Opcional (Gemini activa)'
+                : 'Pendiente en Vercel'}
           </span>
 
           <span className={`badge ${envStatus.fmpApiKey ? 'active' : 'past_due'}`}>
@@ -527,18 +586,53 @@ export function IntegrationsClient({
             </div>
 
             <div className="r2">
-              <label>
-                Modelo Anthropic para Mi Geny
-                <input
-                  type="text"
-                  value={aiModel}
-                  onChange={(e) => setAiModel(e.target.value)}
-                  placeholder="claude-haiku-4-5"
+              <div style={{ display: 'grid', gap: 5, alignContent: 'start' }}>
+                <label htmlFor="ai-model-select">
+                  Proveedor y Modelo de IA para Mi Geny
+                </label>
+                <select
+                  id="ai-model-select"
+                  value={customModelMode ? '__custom__' : aiModel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__custom__') {
+                      setCustomModelMode(true);
+                    } else {
+                      setCustomModelMode(false);
+                      setAiModel(val);
+                    }
+                  }}
                   disabled={!isAdmin}
-                />
-              </label>
+                >
+                  <optgroup label="Google Gemini (requiere GEMINI_API_KEY)">
+                    {GEMINI_MODELS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Anthropic Claude (requiere ANTHROPIC_API_KEY)">
+                    {CLAUDE_MODELS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <option value="__custom__">Otro ID personalizado…</option>
+                </select>
+                {customModelMode ? (
+                  <input
+                    type="text"
+                    aria-label="ID de modelo de IA personalizado"
+                    value={aiModel}
+                    onChange={(e) => setAiModel(e.target.value)}
+                    placeholder="ej. gemini-2.5-flash o claude-haiku-4-5"
+                    disabled={!isAdmin}
+                  />
+                ) : null}
+              </div>
 
-              <label>
+              <label style={{ alignContent: 'start' }}>
                 Mensajes diarios de IA por alumno (por defecto)
                 <input
                   type="number"

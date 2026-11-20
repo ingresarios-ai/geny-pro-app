@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { provisionOrUpdateMember } from '@/lib/provisioning';
+import { resolvePublicAppUrl } from '@/lib/app-url';
 import type { Json } from '@/lib/database.types';
 
 export const maxDuration = 60;
@@ -243,7 +244,7 @@ export async function POST(request: Request) {
     graceUntil,
     notes: cancellationNote,
     eventName: internalEventName,
-    appUrl: process.env.NEXT_PUBLIC_APP_URL || originUrl,
+    appUrl: resolvePublicAppUrl(originUrl),
   });
 
   await admin.from('webhook_logs').insert({

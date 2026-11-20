@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { provisionOrUpdateMember } from '@/lib/provisioning';
+import { resolvePublicAppUrl } from '@/lib/app-url';
 import type { Json } from '@/lib/database.types';
 
 export async function POST(request: Request) {
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
     sendInviteEmail: false,
     eventName: internalEventMap[scenario],
     updatedByUserId: user.id,
-    appUrl: process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin,
+    appUrl: resolvePublicAppUrl(new URL(request.url).origin),
   });
 
   await db.from('webhook_logs').insert({

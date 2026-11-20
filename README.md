@@ -36,8 +36,9 @@ Plataforma SaaS de inteligencia financiera, trading (acciones, futuros y opcione
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://jlwrhdlkffxqnwphtrzh.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publishable / Anon Key del proyecto `geny-pro-app` en Supabase (*Project Settings → API*) |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Obligatoria en Vercel**: *Secret / service_role key* en Supabase (*Project Settings → API*) para creación automática de cuentas desde Hotmart/Whop y Admin |
-| `NEXT_PUBLIC_APP_URL` | Tu dominio final sin barra al final (ej. `https://genypro.ingresarios.net`) |
-| `ANTHROPIC_API_KEY` | Tu llave de API de Anthropic para el chat de **Mi Geny** |
+| `NEXT_PUBLIC_APP_URL` | **Opcional**: Vercel detecta automáticamente tu dominio (`*.vercel.app` o dominio propio). Defínela solo si deseas forzar una URL fija sin `/` al final |
+| `GEMINI_API_KEY` | Tu llave de Google AI Studio / Gemini para el chat de **Mi Geny** (basta configurar esta y/o `ANTHROPIC_API_KEY`) |
+| `ANTHROPIC_API_KEY` | Tu llave de API de Anthropic (Claude) para **Mi Geny** (puedes alternar entre Gemini y Claude desde `/admin/integraciones`) |
 | `FMP_API_KEY` | Tu llave de Financial Modeling Prep para el **Radar** y precios diarios |
 
 3. Haz clic en **Deploy**.

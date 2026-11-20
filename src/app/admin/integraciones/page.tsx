@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient, hasServiceRole } from '@/lib/supabase/server';
 import { IntegrationsClient } from '@/components/IntegrationsClient';
+import { resolvePublicAppUrl } from '@/lib/app-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +25,7 @@ export default async function AdminIntegracionesPage() {
   const hdrs = await headers();
   const host = hdrs.get('x-forwarded-host') || hdrs.get('host') || 'localhost:3000';
   const proto = hdrs.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-  const detectedOrigin =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || `${proto}://${host}`;
+  const detectedOrigin = resolvePublicAppUrl(`${proto}://${host}`);
 
   const [{ data: settings }, { data: logs }] = await Promise.all([
     supabase.from('app_settings').select('*').eq('id', 1).maybeSingle(),
@@ -51,6 +51,7 @@ export default async function AdminIntegracionesPage() {
 
   const envStatus = {
     supabaseServiceRole: hasServiceRole(),
+    geminiApiKey: Boolean((process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim()),
     anthropicApiKey: Boolean(process.env.ANTHROPIC_API_KEY?.trim()),
     fmpApiKey: Boolean(process.env.FMP_API_KEY?.trim()),
   };
