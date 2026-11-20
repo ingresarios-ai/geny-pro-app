@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { provisionOrUpdateMember } from '@/lib/provisioning';
 import type { Json } from '@/lib/database.types';
 
+export const maxDuration = 60;
+
 function safeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);

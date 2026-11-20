@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { provisionOrUpdateMember } from '@/lib/provisioning';
 import type { Json } from '@/lib/database.types';
 
+export const maxDuration = 60;
+
 function verifyWhopRequest(rawBody: string, headers: Headers, secret: string): boolean {
   if (!secret) return false;
 

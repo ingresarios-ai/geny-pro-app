@@ -3,6 +3,8 @@ import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { dispatchToGhl } from '@/lib/ghl';
 import { STATE_SUMMARY_COLS } from '@/lib/membership';
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {

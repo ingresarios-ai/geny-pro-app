@@ -3,6 +3,8 @@ import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { provisionOrUpdateMember } from '@/lib/provisioning';
 import type { Database } from '@/lib/database.types';
 
+export const maxDuration = 60;
+
 async function requireAdminSession() {
   const supabase = await createClient();
   const {

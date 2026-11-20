@@ -95,9 +95,15 @@ export async function provisionOrUpdateMember(
 
   // 3. Create or invite user in Supabase Auth when service_role is available and user doesn't exist yet
   if (!existingProfileId && adminAuthClient && (input.status === 'active' || input.source === 'manual')) {
+    const vercelProdUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : '';
+    const vercelBranchUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
     const siteUrl = (
       input.appUrl ||
       process.env.NEXT_PUBLIC_APP_URL ||
+      vercelProdUrl ||
+      vercelBranchUrl ||
       'http://localhost:3000'
     ).replace(/\/$/, '');
 

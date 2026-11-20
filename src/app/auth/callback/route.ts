@@ -13,12 +13,16 @@ export async function GET(request: NextRequest) {
       ? rawNext
       : '/';
 
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const isLocalEnv = process.env.NODE_ENV === 'development';
+  const baseUrl = !isLocalEnv && forwardedHost ? `https://${forwardedHost}` : origin;
+
   const supabase = await createClient();
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${nextPath}`);
+      return NextResponse.redirect(`${baseUrl}${nextPath}`);
     }
   }
 
@@ -29,10 +33,10 @@ export async function GET(request: NextRequest) {
     });
     if (!error) {
       const dest = type === 'recovery' || type === 'invite' ? '/actualizar-clave' : nextPath;
-      return NextResponse.redirect(`${origin}${dest}`);
+      return NextResponse.redirect(`${baseUrl}${dest}`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=enlace_expirado`);
+  return NextResponse.redirect(`${baseUrl}/login?error=enlace_expirado`);
 }
 
