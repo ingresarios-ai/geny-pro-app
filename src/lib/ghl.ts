@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isSafePublicHttpsUrl } from '@/lib/app-url';
 import type {
   AppSettingsRow,
   Database,
@@ -61,6 +62,14 @@ export async function dispatchToGhl(params: GhlDispatchParams): Promise<{
   const isEnabled = forceSend || Boolean(settings?.ghl_enabled && webhookUrl);
   if (!webhookUrl || !isEnabled) {
     return { sent: false, httpStatus: null, error: null };
+  }
+
+  if (!isSafePublicHttpsUrl(webhookUrl)) {
+    return {
+      sent: false,
+      httpStatus: null,
+      error: 'La URL del Webhook de GHL debe ser una URL pública https:// válida',
+    };
   }
 
   if (!forceSend && category === 'milestone' && settings && !settings.ghl_send_milestones) {

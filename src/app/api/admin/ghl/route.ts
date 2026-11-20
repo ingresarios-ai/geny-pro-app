@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { dispatchToGhl } from '@/lib/ghl';
 import { STATE_SUMMARY_COLS } from '@/lib/membership';
+import { isSafePublicHttpsUrl } from '@/lib/app-url';
 
 export const maxDuration = 60;
 
@@ -34,14 +35,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 });
   }
 
+  const hasOverride = Boolean(body.overrideWebhookUrl && body.overrideWebhookUrl.trim());
+  if (
+    (body.action === 'test' || body.action === 'retry' || hasOverride) &&
+    adminProfile.role !== 'admin'
+  ) {
+    return NextResponse.json(
+      { error: 'Solo Administradores pueden probar, reintentar o cambiar la URL de GHL' },
+      { status: 403 }
+    );
+  }
+
   const db = createAdminClient() || supabase;
   const { data: settings } = await db.from('app_settings').select('*').eq('id', 1).maybeSingle();
 
   const effectiveSettings = settings
     ? {
         ...settings,
-        ...(body.overrideWebhookUrl
-          ? { ghl_webhook_url: body.overrideWebhookUrl.trim() }
+        ...(adminProfile.role === 'admin' && hasOverride
+          ? { ghl_webhook_url: body.overrideWebhookUrl!.trim() }
           : {}),
       }
     : null;
@@ -55,6 +67,13 @@ export async function POST(request: Request) {
   if (!webhookUrl) {
     return NextResponse.json(
       { error: 'Configura primero la URL del Webhook de GHL' },
+      { status: 400 }
+    );
+  }
+
+  if (!isSafePublicHttpsUrl(webhookUrl)) {
+    return NextResponse.json(
+      { error: 'La URL del Webhook de GHL debe comenzar con https:// y apuntar a un dominio público válido' },
       { status: 400 }
     );
   }

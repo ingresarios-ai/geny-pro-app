@@ -103,12 +103,14 @@ export async function provisionOrUpdateMember(
         email,
         password: input.password,
         email_confirm: true,
+        app_metadata: {
+          role,
+          membership_active: input.status === 'active' ? 'true' : 'false',
+        },
         user_metadata: {
           full_name: fullName,
           phone,
           country,
-          role,
-          membership_active: input.status === 'active' ? 'true' : 'false',
         },
       });
       if (!error && created.user) {
@@ -123,8 +125,6 @@ export async function provisionOrUpdateMember(
             full_name: fullName,
             phone,
             country,
-            role,
-            membership_active: input.status === 'active' ? 'true' : 'false',
           },
           redirectTo: `${siteUrl}/auth/callback?next=/actualizar-clave`,
         }
@@ -138,12 +138,14 @@ export async function provisionOrUpdateMember(
         const { data: created } = await adminAuthClient.auth.admin.createUser({
           email,
           email_confirm: true,
+          app_metadata: {
+            role,
+            membership_active: input.status === 'active' ? 'true' : 'false',
+          },
           user_metadata: {
             full_name: fullName,
             phone,
             country,
-            role,
-            membership_active: input.status === 'active' ? 'true' : 'false',
           },
         });
         if (created?.user) {

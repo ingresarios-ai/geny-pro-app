@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isSafePublicHttpsUrl } from '@/lib/app-url';
 import type { Database } from '@/lib/database.types';
+
+const URL_FIELD_LABELS = [
+  ['ghl_webhook_url', 'URL del Webhook de GHL'],
+  ['renewal_url_hotmart', 'URL Checkout / Renovación Hotmart'],
+  ['renewal_url_whop', 'URL Checkout / Renovación Whop'],
+  ['support_whatsapp_url', 'URL WhatsApp de Soporte'],
+  ['privacy_url', 'URL Política de Privacidad'],
+] as const;
 
 export async function PUT(request: Request) {
   const supabase = await createClient();
@@ -27,6 +36,20 @@ export async function PUT(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 });
+  }
+
+  for (const [key, label] of URL_FIELD_LABELS) {
+    if (key in body) {
+      const val = String(body[key] ?? '').trim();
+      if (val !== '' && !isSafePublicHttpsUrl(val)) {
+        return NextResponse.json(
+          {
+            error: `${label} debe ser una URL pública https:// válida (no se permiten http://, localhost ni IPs privadas).`,
+          },
+          { status: 400 }
+        );
+      }
+    }
   }
 
   const patch: Database['public']['Tables']['app_settings']['Update'] = {};

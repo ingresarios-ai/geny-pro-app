@@ -195,7 +195,12 @@ export function IntegrationsClient({
   }
 
   async function handleClearSecret(
-    field: 'clear_gemini_api_key' | 'clear_anthropic_api_key' | 'clear_fmp_api_key',
+    field:
+      | 'clear_hotmart_hottok'
+      | 'clear_whop_secret'
+      | 'clear_gemini_api_key'
+      | 'clear_anthropic_api_key'
+      | 'clear_fmp_api_key',
     label: string
   ) {
     setBusy(true);
@@ -493,10 +498,40 @@ export function IntegrationsClient({
               </div>
 
               <div className="r2">
-                <label>
-                  Hotmart Hottok (Secreto)
+                <div style={{ display: 'grid', gap: 5, alignContent: 'start' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <label htmlFor="hotmart-hottok-input">Hotmart Hottok (Secreto)</label>
+                    {isAdmin && secretFlags.hasHotmartHottok ? (
+                      <button
+                        type="button"
+                        onClick={() => handleClearSecret('clear_hotmart_hottok', 'Hotmart Hottok')}
+                        disabled={busy}
+                        style={{
+                          background: 'none',
+                          border: 0,
+                          padding: 0,
+                          color: 'var(--muted)',
+                          fontSize: 12,
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Limpiar llave guardada
+                      </button>
+                    ) : null}
+                  </div>
                   <input
+                    id="hotmart-hottok-input"
                     type="password"
+                    autoComplete="off"
                     value={hotmartHottok}
                     onChange={(e) => setHotmartHottok(e.target.value)}
                     placeholder={
@@ -506,7 +541,7 @@ export function IntegrationsClient({
                     }
                     disabled={!isAdmin}
                   />
-                </label>
+                </div>
                 <label className="ck" style={{ alignSelf: 'end', paddingBottom: 8 }}>
                   <input
                     type="checkbox"
@@ -540,10 +575,40 @@ export function IntegrationsClient({
               </div>
 
               <div className="r2">
-                <label>
-                  Whop Webhook Secret
+                <div style={{ display: 'grid', gap: 5, alignContent: 'start' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <label htmlFor="whop-secret-input">Whop Webhook Secret</label>
+                    {isAdmin && secretFlags.hasWhopSecret ? (
+                      <button
+                        type="button"
+                        onClick={() => handleClearSecret('clear_whop_secret', 'Whop Secret')}
+                        disabled={busy}
+                        style={{
+                          background: 'none',
+                          border: 0,
+                          padding: 0,
+                          color: 'var(--muted)',
+                          fontSize: 12,
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Limpiar llave guardada
+                      </button>
+                    ) : null}
+                  </div>
                   <input
+                    id="whop-secret-input"
                     type="password"
+                    autoComplete="off"
                     value={whopSecret}
                     onChange={(e) => setWhopSecret(e.target.value)}
                     placeholder={
@@ -553,7 +618,7 @@ export function IntegrationsClient({
                     }
                     disabled={!isAdmin}
                   />
-                </label>
+                </div>
                 <label className="ck" style={{ alignSelf: 'end', paddingBottom: 8 }}>
                   <input
                     type="checkbox"

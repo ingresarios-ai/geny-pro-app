@@ -52,6 +52,9 @@ export async function POST(request: Request) {
     String(body.hottok || '')
   ).trim();
 
+  const safePayload: Record<string, unknown> =
+    'hottok' in body ? { ...body, hottok: '[REDACTED]' } : body;
+
   if (!expectedToken || !receivedToken || !safeEqual(receivedToken, expectedToken)) {
     await admin.from('webhook_logs').insert({
       direction: 'inbound',
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
       event_type: String(body.event || 'unknown'),
       status: 'failed',
       http_status: 401,
-      payload: body as Json,
+      payload: safePayload as Json,
       error_message: expectedToken
         ? 'X-Hotmart-Hottok inválido'
         : 'Hotmart Hottok no configurado en Admin',
@@ -125,7 +128,7 @@ export async function POST(request: Request) {
       external_event_id: externalEventId,
       status: 'ignored',
       http_status: 200,
-      payload: body as Json,
+      payload: safePayload as Json,
       error_message: 'Evento sin correo del comprador',
     });
     return NextResponse.json({ ok: true, ignored: 'missing_email' });
@@ -224,7 +227,7 @@ export async function POST(request: Request) {
       email,
       status: 'ignored',
       http_status: 200,
-      payload: body as Json,
+      payload: safePayload as Json,
     });
     return NextResponse.json({ ok: true, ignored: eventType });
   }
@@ -256,7 +259,7 @@ export async function POST(request: Request) {
     user_id: result.userId,
     status: 'processed',
     http_status: 200,
-    payload: body as Json,
+    payload: safePayload as Json,
     response_body: JSON.stringify({
       mappedStatus,
       createdAuthUser: result.createdAuthUser,

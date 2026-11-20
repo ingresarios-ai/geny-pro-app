@@ -169,6 +169,20 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Falta userId' }, { status: 400 });
   }
 
+  if (body.userId === auth.user.id && body.role && body.role !== 'admin') {
+    return NextResponse.json(
+      { error: 'No puedes quitarte a ti mismo el rol de Administrador para evitar perder acceso al panel.' },
+      { status: 400 }
+    );
+  }
+
+  if (body.userId === auth.user.id && body.status && body.status !== 'active') {
+    return NextResponse.json(
+      { error: 'No puedes desactivar tu propia cuenta de Administrador.' },
+      { status: 400 }
+    );
+  }
+
   const { data: curProf } = await db
     .from('profiles')
     .select('email')

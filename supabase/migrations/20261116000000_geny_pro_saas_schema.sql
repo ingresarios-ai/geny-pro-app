@@ -347,22 +347,38 @@ BEGIN
   IF FOUND THEN
     v_has_pending := true;
     v_role := v_pending.role;
-    v_name := COALESCE(NULLIF(trim(v_pending.full_name), ''), COALESCE(NULLIF(trim(NEW.raw_user_meta_data->>'full_name'), ''), split_part(v_email, '@', 1)));
-    v_phone := COALESCE(NULLIF(trim(v_pending.phone), ''), COALESCE(NEW.raw_user_meta_data->>'phone', ''));
-    v_country := COALESCE(NULLIF(trim(v_pending.country), ''), COALESCE(NEW.raw_user_meta_data->>'country', ''));
+    v_name := left(
+      COALESCE(
+        NULLIF(trim(v_pending.full_name), ''),
+        NULLIF(trim(NEW.raw_user_meta_data->>'full_name'), ''),
+        NULLIF(split_part(v_email, '@', 1), ''),
+        'Trader'
+      ),
+      80
+    );
+    v_phone := left(COALESCE(NULLIF(trim(v_pending.phone), ''), COALESCE(NEW.raw_user_meta_data->>'phone', '')), 30);
+    v_country := left(COALESCE(NULLIF(trim(v_pending.country), ''), COALESCE(NEW.raw_user_meta_data->>'country', '')), 40);
     v_status := v_pending.status;
     v_source := v_pending.source;
     v_plan := v_pending.plan_name;
   ELSE
+    -- Never trust client-writable raw_user_meta_data for role or membership status.
     v_role := CASE
-      WHEN COALESCE(NEW.raw_user_meta_data->>'role', '') IN ('admin', 'mentor', 'student')
-      THEN NEW.raw_user_meta_data->>'role'
+      WHEN COALESCE(NEW.raw_app_meta_data->>'role', '') IN ('admin', 'mentor', 'student')
+      THEN NEW.raw_app_meta_data->>'role'
       ELSE 'student'
     END;
-    v_name := COALESCE(NULLIF(trim(NEW.raw_user_meta_data->>'full_name'), ''), split_part(v_email, '@', 1), 'Trader');
-    v_phone := COALESCE(NEW.raw_user_meta_data->>'phone', '');
-    v_country := COALESCE(NEW.raw_user_meta_data->>'country', '');
-    IF v_role IN ('admin', 'mentor') OR COALESCE(NEW.raw_user_meta_data->>'membership_active', '') = 'true' THEN
+    v_name := left(
+      COALESCE(
+        NULLIF(trim(NEW.raw_user_meta_data->>'full_name'), ''),
+        NULLIF(split_part(v_email, '@', 1), ''),
+        'Trader'
+      ),
+      80
+    );
+    v_phone := left(COALESCE(NEW.raw_user_meta_data->>'phone', ''), 30);
+    v_country := left(COALESCE(NEW.raw_user_meta_data->>'country', ''), 40);
+    IF v_role IN ('admin', 'mentor') OR COALESCE(NEW.raw_app_meta_data->>'membership_active', '') = 'true' THEN
       v_status := 'active';
     END IF;
   END IF;
@@ -615,7 +631,7 @@ DROP POLICY IF EXISTS webhook_logs_insert ON public.webhook_logs;
 DROP POLICY IF EXISTS webhook_logs_update ON public.webhook_logs;
 CREATE POLICY webhook_logs_select ON public.webhook_logs
   FOR SELECT TO authenticated
-  USING (private.is_admin_or_mentor());
+  USING (private.is_admin());
 CREATE POLICY webhook_logs_insert ON public.webhook_logs
   FOR INSERT TO authenticated
   WITH CHECK (private.is_admin());
