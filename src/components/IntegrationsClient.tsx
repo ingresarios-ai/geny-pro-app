@@ -17,12 +17,13 @@ import {
 
 const GEMINI_MODELS = [
   {
-    value: 'gemini-2.5-flash',
-    label: 'Gemini 2.5 Flash (Recomendado Google · rápido y económico)',
+    value: 'gemini-3-flash-preview',
+    label: 'Gemini 3 Flash (Recomendado · rápido y compatible con Vertex y AI Studio)',
   },
-  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Razonamiento avanzado)' },
-  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (Ultra económico)' },
-  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)' },
+  { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (Última generación Flash)' },
+  { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite (Ultra veloz y económico)' },
+  { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (Razonamiento avanzado)' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Legacy — auto-migra si fue retirado)' },
 ] as const;
 
 const CLAUDE_MODELS = [
@@ -230,7 +231,7 @@ export function IntegrationsClient({
     setFeedback('');
     setErrorMsg('');
     try {
-      const cleanModel = aiModel.trim() || 'gemini-2.5-flash';
+      const cleanModel = aiModel.trim() || 'gemini-3-flash-preview';
       if (
         geminiApiKey.trim() ||
         anthropicApiKey.trim() ||
@@ -804,7 +805,7 @@ export function IntegrationsClient({
                     aria-label="ID de modelo de IA personalizado"
                     value={aiModel}
                     onChange={(e) => setAiModel(e.target.value)}
-                    placeholder="ej. gemini-2.5-flash o claude-haiku-4-5"
+                    placeholder="ej. gemini-3-flash-preview o claude-haiku-4-5"
                     disabled={!isAdmin}
                   />
                 ) : null}
