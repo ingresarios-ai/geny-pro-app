@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createClient, readAppSettings } from '@/lib/supabase/server';
 import { evaluateMembershipAccess } from '@/lib/membership';
 
 export const maxDuration = 60;
@@ -26,15 +26,23 @@ const GEMINI_SCHEMA_KEYS = new Set([
   'items',
 ]);
 
+function redactApiSecrets(text: string): string {
+  return text
+    .replace(/AIza[0-9A-Za-z_-]{10,}/g, '[REDACTED_KEY]')
+    .replace(/AQ\.[0-9A-Za-z._-]{10,}/g, '[REDACTED_KEY]');
+}
+
 function sanitizeGeminiSchema(schema: unknown): Record<string, unknown> {
   if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
-    return { type: 'object', properties: {} };
+    return { type: 'OBJECT', properties: {} };
   }
 
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(schema as Record<string, unknown>)) {
     if (!GEMINI_SCHEMA_KEYS.has(k)) continue;
-    if (k === 'properties' && v && typeof v === 'object' && !Array.isArray(v)) {
+    if (k === 'type' && typeof v === 'string') {
+      out.type = v.toUpperCase();
+    } else if (k === 'properties' && v && typeof v === 'object' && !Array.isArray(v)) {
       const props: Record<string, unknown> = {};
       for (const [pk, pv] of Object.entries(v as Record<string, unknown>)) {
         props[pk] = sanitizeGeminiSchema(pv);
@@ -146,6 +154,83 @@ function toGeminiContents(
   return contents;
 }
 
+async function callGoogleGemini(
+  activeModel: string,
+  geminiKey: string,
+  geminiBody: Record<string, unknown>
+): Promise<{
+  ok: boolean;
+  status: number;
+  data: Record<string, unknown> | null;
+  detail: string;
+}> {
+  const modelEnc = encodeURIComponent(activeModel);
+  const keyEnc = encodeURIComponent(geminiKey);
+  const endpoints: string[] = [];
+
+  const customBase = (process.env.GEMINI_BASE_URL || '').trim().replace(/\/$/, '');
+  if (customBase) {
+    endpoints.push(`${customBase}/v1beta/models/${modelEnc}:generateContent?key=${keyEnc}`);
+  }
+
+  if (geminiKey.startsWith('AQ.')) {
+    // Vertex AI Express Mode keys (AQ.*) target aiplatform.googleapis.com
+    endpoints.push(
+      `https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${modelEnc}:generateContent?key=${keyEnc}`,
+      `https://aiplatform.googleapis.com/v1/publishers/google/models/${modelEnc}:generateContent?key=${keyEnc}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelEnc}:generateContent?key=${keyEnc}`
+    );
+  } else {
+    // Standard Google AI Studio keys (AIza...) target generativelanguage.googleapis.com first
+    endpoints.push(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelEnc}:generateContent?key=${keyEnc}`,
+      `https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${modelEnc}:generateContent?key=${keyEnc}`
+    );
+  }
+
+  let lastStatus = 502;
+  let lastDetail = '';
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-goog-api-key': geminiKey,
+        },
+        body: JSON.stringify(geminiBody),
+        signal: AbortSignal.timeout(45000),
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as Record<string, unknown>;
+        return { ok: true, status: 200, data, detail: '' };
+      }
+
+      const errJson = (await res.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      lastStatus = res.status;
+      lastDetail = redactApiSecrets(String(errJson?.error?.message || '')).slice(0, 300);
+
+      if (res.status === 429) {
+        return { ok: false, status: 429, data: null, detail: lastDetail };
+      }
+      if (![400, 401, 403, 404].includes(res.status)) {
+        break;
+      }
+    } catch (err) {
+      lastStatus = 502;
+      lastDetail = redactApiSecrets(
+        err instanceof Error ? err.message : 'Error de red hacia Google Gemini'
+      ).slice(0, 300);
+    }
+  }
+
+  return { ok: false, status: lastStatus, data: null, detail: lastDetail };
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -155,8 +240,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const settingsReader = createAdminClient() || supabase;
-  const [{ data: profile }, { data: membership }, { data: settings }] = await Promise.all([
+  const [{ data: profile }, { data: membership }, settings] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, role, daily_ai_limit_override')
@@ -167,11 +251,10 @@ export async function POST(request: Request) {
       .select('status, source, expires_at, grace_until')
       .eq('user_id', user.id)
       .maybeSingle(),
-    settingsReader
-      .from('app_settings')
-      .select('ai_model, default_ai_daily_limit, gemini_api_key, anthropic_api_key')
-      .eq('id', 1)
-      .maybeSingle(),
+    readAppSettings(
+      supabase,
+      'ai_model, default_ai_daily_limit, gemini_api_key, anthropic_api_key'
+    ),
   ]);
 
   if (!evaluateMembershipAccess(profile, membership).allowed || !profile) {
@@ -274,12 +357,8 @@ export async function POST(request: Request) {
   }
 
   if (provider === 'gemini') {
-    const geminiBaseUrl = (
-      process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com'
-    ).replace(/\/$/, '');
-
-    const geminiBody = {
-      systemInstruction: { parts: [{ text: systemText }] },
+    const geminiBody: Record<string, unknown> = {
+      systemInstruction: { role: 'system', parts: [{ text: systemText }] },
       contents: toGeminiContents(messages),
       ...(tools.length
         ? {
@@ -300,27 +379,65 @@ export async function POST(request: Request) {
       },
     };
 
-    const geminiRes = await fetch(
-      `${geminiBaseUrl}/v1beta/models/${encodeURIComponent(activeModel)}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-goog-api-key': geminiKey,
-        },
-        body: JSON.stringify(geminiBody),
-      }
-    );
+    const geminiResult = await callGoogleGemini(activeModel, geminiKey, geminiBody);
 
-    if (!geminiRes.ok) {
+    if (!geminiResult.ok || !geminiResult.data) {
+      console.error('[geny][gemini]', {
+        status: geminiResult.status,
+        model: activeModel,
+        detail: geminiResult.detail,
+      });
+
+      const { status, detail } = geminiResult;
+      if (status === 429) {
+        return NextResponse.json(
+          {
+            error:
+              'Se alcanzó el límite de cuota por minuto de tu API Key de Gemini. Espera unos segundos e intenta de nuevo.',
+          },
+          { status: 429 }
+        );
+      }
+
+      if (
+        status === 401 ||
+        status === 403 ||
+        /API_KEY_INVALID|PERMISSION_DENIED|BILLING/i.test(detail)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'Google rechazó la API Key de Gemini o requiere activar facturación/permisos en tu proyecto. Revisa la llave en /admin/integraciones (puedes usar una API Key directa desde aistudio.google.com/apikey).',
+          },
+          { status: 502 }
+        );
+      }
+
+      if (status === 404) {
+        return NextResponse.json(
+          {
+            error: `El modelo "${activeModel}" no está disponible para tu llave. Elige gemini-2.5-flash en /admin/integraciones.`,
+          },
+          { status: 502 }
+        );
+      }
+
       return NextResponse.json(
-        { error: `Gemini respondió ${geminiRes.status}` },
-        { status: geminiRes.status === 429 ? 429 : 502 }
+        {
+          error: `Gemini no pudo completar la respuesta (HTTP ${status}). Revisa la llave o modelo en /admin/integraciones.`,
+        },
+        { status: 502 }
       );
     }
 
-    const data = await geminiRes.json();
-    const candidate = data?.candidates?.[0];
+    const data = geminiResult.data as {
+      candidates?: Array<{
+        finishReason?: string;
+        content?: { parts?: unknown[] };
+      }>;
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+    };
+    const candidate = data.candidates?.[0];
     const rawParts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
     const normalizedBlocks: Array<Record<string, unknown>> = [];
 
@@ -363,8 +480,8 @@ export async function POST(request: Request) {
       user_id: user.id,
       usage_date: todayIso,
       model: activeModel,
-      input_tokens: Number(data?.usageMetadata?.promptTokenCount || 0),
-      output_tokens: Number(data?.usageMetadata?.candidatesTokenCount || 0),
+      input_tokens: Number(data.usageMetadata?.promptTokenCount || 0),
+      output_tokens: Number(data.usageMetadata?.candidatesTokenCount || 0),
     });
 
     return NextResponse.json({
@@ -397,9 +514,49 @@ export async function POST(request: Request) {
   });
 
   if (!anthropicRes.ok) {
+    const errJson = (await anthropicRes.json().catch(() => null)) as {
+      error?: { message?: string };
+    } | null;
+    console.error('[geny][anthropic]', {
+      status: anthropicRes.status,
+      model: activeModel,
+      detail: String(errJson?.error?.message || '').slice(0, 300),
+    });
+
+    if (anthropicRes.status === 429) {
+      return NextResponse.json(
+        {
+          error:
+            'Se alcanzó el límite de cuota por minuto de tu API Key de Claude. Espera unos segundos e intenta de nuevo.',
+        },
+        { status: 429 }
+      );
+    }
+
+    if (anthropicRes.status === 401 || anthropicRes.status === 403) {
+      return NextResponse.json(
+        {
+          error:
+            'Anthropic rechazó la API Key de Claude o falta crédito en tu cuenta. Revisa ANTHROPIC_API_KEY en /admin/integraciones.',
+        },
+        { status: 502 }
+      );
+    }
+
+    if (anthropicRes.status === 404) {
+      return NextResponse.json(
+        {
+          error: `El modelo "${activeModel}" no está disponible para tu llave de Claude. Elige claude-haiku-4-5 en /admin/integraciones.`,
+        },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(
-      { error: `Claude respondió ${anthropicRes.status}` },
-      { status: anthropicRes.status === 429 ? 429 : 502 }
+      {
+        error: `Claude no pudo completar la respuesta (HTTP ${anthropicRes.status}). Revisa tu llave o modelo en /admin/integraciones.`,
+      },
+      { status: 502 }
     );
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createClient, readAppSettings } from '@/lib/supabase/server';
 import { evaluateMembershipAccess } from '@/lib/membership';
 import type { Json } from '@/lib/database.types';
 
@@ -12,15 +12,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const settingsReader = createAdminClient() || supabase;
-  const [{ data: profile }, { data: membership }, { data: settings }] = await Promise.all([
+  const [{ data: profile }, { data: membership }, settings] = await Promise.all([
     supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
     supabase
       .from('memberships')
       .select('status, source, expires_at, grace_until')
       .eq('user_id', user.id)
       .maybeSingle(),
-    settingsReader.from('app_settings').select('fmp_api_key').eq('id', 1).maybeSingle(),
+    readAppSettings(supabase, 'fmp_api_key'),
   ]);
 
   if (!evaluateMembershipAccess(profile, membership).allowed) {

@@ -9,9 +9,18 @@ window.bootGenyPro = function bootGenyPro(BOOT) {
     try { r = await fetch(path, opt); } catch (e) { throw fail('server_unavailable', 'Sin conexión', { retryable: true }); }
     if (r.status === 401) { location.href = '/login'; throw fail('permission_denied', 'Sesión expirada'); }
     if (r.status === 403) { throw fail('permission_denied', 'Sin permiso'); }
-    if (r.status === 429) { throw fail('rate_limited', 'Límite alcanzado'); }
-    if (r.status === 501) { throw fail('server_not_connected', 'Servicio sin configurar'); }
-    if (r.status >= 500) { throw fail('server_unavailable', 'Servicio no disponible', { retryable: true }); }
+    if (r.status === 429) {
+      const errBody = await r.json().catch(() => ({}));
+      throw fail('rate_limited', errBody.error || 'Límite alcanzado');
+    }
+    if (r.status === 501) {
+      const errBody = await r.json().catch(() => ({}));
+      throw fail('server_not_connected', errBody.error || 'Servicio sin configurar');
+    }
+    if (r.status >= 500) {
+      const errBody = await r.json().catch(() => ({}));
+      throw fail('server_unavailable', errBody.error || 'Servicio no disponible', { retryable: true });
+    }
     if (!r.ok) { throw fail('tool_error', (await r.text()).slice(0, 200)); }
     return r.json();
   }
@@ -993,7 +1002,9 @@ async function sendChat(){
     S.chat.push({role:'assistant',content:live.textContent});S.chat=S.chat.slice(-40);save();
   }catch(err){
     S.chat.pop();
-    live.textContent=err?.code==='rate_limited'?'Estoy recibiendo muchos mensajes. Espera un minuto y vuelve a escribirme.':err?.code==='not_granted'?'Necesito tu permiso para responder. Actívalo en el menú de permisos de esta app.':'No pude responder ahora. Intenta de nuevo en un momento.';
+    const rawMsg=typeof err?.message==='string'?err.message.trim():'';
+    const isGeneric=!rawMsg||rawMsg==='Sin conexión'||rawMsg==='Servicio no disponible';
+    live.textContent=!isGeneric?rawMsg:err?.code==='rate_limited'?'Estoy recibiendo muchos mensajes. Espera un minuto y vuelve a escribirme.':err?.code==='not_granted'?'Necesito tu permiso para responder. Actívalo en el menú de permisos de esta app.':'No pude responder ahora. Intenta de nuevo en un momento.';
   }finally{live.removeAttribute('id');sending=false;const s=$('#send');if(s)s.disabled=false;$('#bellDot').hidden=!avisos().length}
 }
 

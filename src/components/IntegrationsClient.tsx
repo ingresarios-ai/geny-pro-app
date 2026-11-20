@@ -225,6 +225,69 @@ export function IntegrationsClient({
     }
   }
 
+  async function handleTestAi() {
+    setBusy(true);
+    setFeedback('');
+    setErrorMsg('');
+    try {
+      const cleanModel = aiModel.trim() || 'gemini-2.5-flash';
+      if (
+        geminiApiKey.trim() ||
+        anthropicApiKey.trim() ||
+        cleanModel !== (initialSettings?.ai_model || 'claude-haiku-4-5')
+      ) {
+        const saveRes = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ai_model: cleanModel,
+            ...(geminiApiKey.trim() ? { gemini_api_key: geminiApiKey.trim() } : {}),
+            ...(anthropicApiKey.trim() ? { anthropic_api_key: anthropicApiKey.trim() } : {}),
+          }),
+        });
+        const saveData = await saveRes.json();
+        if (!saveRes.ok) {
+          setErrorMsg(
+            saveData.error || 'No se pudieron guardar los ajustes de IA antes de probar.'
+          );
+          return;
+        }
+        setGeminiApiKey('');
+        setAnthropicApiKey('');
+      }
+
+      const res = await fetch('/api/geny', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'user', content: 'Confirma en máximo 12 palabras que estás conectada.' },
+          ],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error || `Error al probar Geny IA (HTTP ${res.status})`);
+      } else {
+        const replyText = Array.isArray(data.content)
+          ? data.content
+              .filter((b: { type?: string; text?: string }) => b.type === 'text' && b.text)
+              .map((b: { text?: string }) => b.text)
+              .join(' ')
+              .trim()
+          : '';
+        setFeedback(
+          `¡Geny IA conectada (${data.model || cleanModel})!: "${replyText || 'Respuesta recibida.'}"`
+        );
+      }
+      router.refresh();
+    } catch {
+      setErrorMsg('Error de red al probar conexión con Mi Geny.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleTestGhl() {
     setBusy(true);
     setFeedback('');
@@ -786,7 +849,7 @@ export function IntegrationsClient({
                     onChange: setGeminiApiKey,
                     hasSaved: secretFlags.hasGeminiApiKey,
                     hasEnv: envStatus.geminiApiKey,
-                    fallbackPlaceholder: 'AIzaSy...',
+                    fallbackPlaceholder: 'AIzaSy... (AI Studio) o AQ.... (Vertex Express)',
                     clearField: 'clear_gemini_api_key' as const,
                     clearLabel: 'Google Gemini',
                   },
@@ -864,9 +927,17 @@ export function IntegrationsClient({
             </div>
 
             {isAdmin ? (
-              <div>
+              <div className="inline" style={{ gap: 10 }}>
                 <button type="submit" className="btn" disabled={busy}>
                   <Save size={16} /> Guardar toda la configuración
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={handleTestAi}
+                  disabled={busy}
+                >
+                  <Play size={16} /> Probar conexión con Mi Geny
                 </button>
               </div>
             ) : null}
