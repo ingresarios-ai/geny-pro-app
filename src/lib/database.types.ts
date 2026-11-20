@@ -55,7 +55,10 @@ export type Database = {
       app_settings: {
         Row: {
           ai_model: string
+          anthropic_api_key: string
           default_ai_daily_limit: number
+          fmp_api_key: string
+          gemini_api_key: string
           ghl_enabled: boolean
           ghl_send_membership_events: boolean
           ghl_send_milestones: boolean
@@ -74,7 +77,10 @@ export type Database = {
         }
         Insert: {
           ai_model?: string
+          anthropic_api_key?: string
           default_ai_daily_limit?: number
+          fmp_api_key?: string
+          gemini_api_key?: string
           ghl_enabled?: boolean
           ghl_send_membership_events?: boolean
           ghl_send_milestones?: boolean
@@ -93,7 +99,10 @@ export type Database = {
         }
         Update: {
           ai_model?: string
+          anthropic_api_key?: string
           default_ai_daily_limit?: number
+          fmp_api_key?: string
+          gemini_api_key?: string
           ghl_enabled?: boolean
           ghl_send_membership_events?: boolean
           ghl_send_milestones?: boolean

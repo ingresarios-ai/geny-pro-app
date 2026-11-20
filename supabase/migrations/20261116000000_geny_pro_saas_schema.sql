@@ -151,6 +151,9 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
   grace_days integer NOT NULL DEFAULT 3 CHECK (grace_days >= 0 AND grace_days <= 30),
   default_ai_daily_limit integer NOT NULL DEFAULT 40 CHECK (default_ai_daily_limit >= 0 AND default_ai_daily_limit <= 1000),
   ai_model text NOT NULL DEFAULT 'claude-haiku-4-5',
+  gemini_api_key text NOT NULL DEFAULT '',
+  anthropic_api_key text NOT NULL DEFAULT '',
+  fmp_api_key text NOT NULL DEFAULT '',
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 

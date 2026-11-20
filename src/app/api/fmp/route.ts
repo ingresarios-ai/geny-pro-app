@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { evaluateMembershipAccess } from '@/lib/membership';
 import type { Json } from '@/lib/database.types';
 
 export async function GET(request: Request) {
-  if (!process.env.FMP_API_KEY) {
-    return NextResponse.json({ error: 'FMP no está configurado' }, { status: 501 });
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -16,13 +12,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const [{ data: profile }, { data: membership }] = await Promise.all([
+  const settingsReader = createAdminClient() || supabase;
+  const [{ data: profile }, { data: membership }, { data: settings }] = await Promise.all([
     supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
     supabase
       .from('memberships')
       .select('status, source, expires_at, grace_until')
       .eq('user_id', user.id)
       .maybeSingle(),
+    settingsReader.from('app_settings').select('fmp_api_key').eq('id', 1).maybeSingle(),
   ]);
 
   if (!evaluateMembershipAccess(profile, membership).allowed) {
@@ -84,9 +82,17 @@ export async function GET(request: Request) {
     );
   }
 
+  const fmpKey = (settings?.fmp_api_key || process.env.FMP_API_KEY || '').trim();
+  if (!fmpKey) {
+    return NextResponse.json(
+      { error: 'FMP no tiene API Key configurada aún. Agrégala en /admin/integraciones.' },
+      { status: 501 }
+    );
+  }
+
   // 2. Fetch from FMP API
   const fmpRes = await fetch(
-    `${base}${path}?${p.toString()}&apikey=${encodeURIComponent(process.env.FMP_API_KEY)}`
+    `${base}${path}?${p.toString()}&apikey=${encodeURIComponent(fmpKey)}`
   );
 
   if (!fmpRes.ok) {

@@ -29,17 +29,17 @@ Plataforma SaaS de inteligencia financiera, trading (acciones, futuros y opcione
 ## 3. Despliegue en Vercel (Paso a Paso)
 
 1. En **Vercel**, haz clic en **Add New → Project** e importa el repositorio privado `ingresarios-ai/geny-pro-app`.
-2. En **Environment Variables**, configura las siguientes variables:
+2. En **Environment Variables** de Vercel, las únicas **3 obligatorias** son las de Supabase (las demás llaves —Gemini, Claude, FMP, Hotmart, Whop y GoHighLevel— puedes cargarlas directo desde `/admin/integraciones` una vez dentro):
 
-| Variable | Dónde obtenerla |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://jlwrhdlkffxqnwphtrzh.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publishable / Anon Key del proyecto `geny-pro-app` en Supabase (*Project Settings → API*) |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Obligatoria en Vercel**: *Secret / service_role key* en Supabase (*Project Settings → API*) para creación automática de cuentas desde Hotmart/Whop y Admin |
-| `NEXT_PUBLIC_APP_URL` | **Opcional**: Vercel detecta automáticamente tu dominio (`*.vercel.app` o dominio propio). Defínela solo si deseas forzar una URL fija sin `/` al final |
-| `GEMINI_API_KEY` | Tu llave de Google AI Studio / Gemini para el chat de **Mi Geny** (basta configurar esta y/o `ANTHROPIC_API_KEY`) |
-| `ANTHROPIC_API_KEY` | Tu llave de API de Anthropic (Claude) para **Mi Geny** (puedes alternar entre Gemini y Claude desde `/admin/integraciones`) |
-| `FMP_API_KEY` | Tu llave de Financial Modeling Prep para el **Radar** y precios diarios |
+| Variable | Obligatoria en Vercel | Dónde obtenerla / para qué sirve |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | **Sí** | `https://jlwrhdlkffxqnwphtrzh.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **Sí** | Publishable / Anon Key del proyecto `geny-pro-app` en Supabase (*Project Settings → API*) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Sí** | *Secret / service_role key* en Supabase (*Project Settings → API*) para webhooks, altas manuales y lectura segura de llaves guardadas en Admin |
+| `NEXT_PUBLIC_APP_URL` | Opcional | Vercel detecta automáticamente tu dominio (`*.vercel.app` o dominio propio). Defínela solo si deseas forzar una URL fija sin `/` al final |
+| `GEMINI_API_KEY` | Opcional | Respaldo de Google Gemini si prefieres no guardarla desde `/admin/integraciones` |
+| `ANTHROPIC_API_KEY` | Opcional | Respaldo de Anthropic (Claude) si prefieres no guardarla desde `/admin/integraciones` |
+| `FMP_API_KEY` | Opcional | Respaldo de Financial Modeling Prep si prefieres no guardarla desde `/admin/integraciones` |
 
 3. Haz clic en **Deploy**.
 4. En **Supabase Dashboard** (proyecto `geny-pro-app` → *Authentication → URL Configuration*):

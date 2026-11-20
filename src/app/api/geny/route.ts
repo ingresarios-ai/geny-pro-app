@@ -147,16 +147,6 @@ function toGeminiContents(
 }
 
 export async function POST(request: Request) {
-  const anthropicKey = (process.env.ANTHROPIC_API_KEY || '').trim();
-  const geminiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
-
-  if (!anthropicKey && !geminiKey) {
-    return NextResponse.json(
-      { error: 'Geny IA requiere configurar GEMINI_API_KEY o ANTHROPIC_API_KEY en el servidor' },
-      { status: 501 }
-    );
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -165,7 +155,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const [{ data: profile }, { data: membership }] = await Promise.all([
+  const settingsReader = createAdminClient() || supabase;
+  const [{ data: profile }, { data: membership }, { data: settings }] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, role, daily_ai_limit_override')
@@ -176,16 +167,35 @@ export async function POST(request: Request) {
       .select('status, source, expires_at, grace_until')
       .eq('user_id', user.id)
       .maybeSingle(),
+    settingsReader
+      .from('app_settings')
+      .select('ai_model, default_ai_daily_limit, gemini_api_key, anthropic_api_key')
+      .eq('id', 1)
+      .maybeSingle(),
   ]);
 
   if (!evaluateMembershipAccess(profile, membership).allowed || !profile) {
     return NextResponse.json({ error: 'Membresía inactiva' }, { status: 403 });
   }
 
-  const admin = createAdminClient();
-  const { data: settings } = admin
-    ? await admin.from('app_settings').select('ai_model, default_ai_daily_limit').eq('id', 1).maybeSingle()
-    : { data: null };
+  const anthropicKey = (
+    settings?.anthropic_api_key ||
+    process.env.ANTHROPIC_API_KEY ||
+    ''
+  ).trim();
+  const geminiKey = (
+    settings?.gemini_api_key ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    ''
+  ).trim();
+
+  if (!anthropicKey && !geminiKey) {
+    return NextResponse.json(
+      { error: 'Geny IA no tiene API Key configurada aún. Agrégala en /admin/integraciones.' },
+      { status: 501 }
+    );
+  }
 
   const dailyLimit =
     profile.daily_ai_limit_override ??

@@ -53,6 +53,9 @@ export function IntegrationsClient({
   secretFlags: {
     hasHotmartHottok: boolean;
     hasWhopSecret: boolean;
+    hasGeminiApiKey: boolean;
+    hasAnthropicApiKey: boolean;
+    hasFmpApiKey: boolean;
   };
   initialLogs: WebhookLogRow[];
   envStatus: {
@@ -103,7 +106,14 @@ export function IntegrationsClient({
   const [aiLimit, setAiLimit] = useState(
     initialSettings?.default_ai_daily_limit ?? 40
   );
-  const anyAiConnected = envStatus.geminiApiKey || envStatus.anthropicApiKey;
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [anthropicApiKey, setAnthropicApiKey] = useState('');
+  const [fmpApiKey, setFmpApiKey] = useState('');
+
+  const geminiConnected = secretFlags.hasGeminiApiKey || envStatus.geminiApiKey;
+  const anthropicConnected = secretFlags.hasAnthropicApiKey || envStatus.anthropicApiKey;
+  const fmpConnected = secretFlags.hasFmpApiKey || envStatus.fmpApiKey;
+  const anyAiConnected = geminiConnected || anthropicConnected;
 
   // Simulator state
   const [simProvider, setSimProvider] = useState<'hotmart' | 'whop'>('hotmart');
@@ -161,6 +171,9 @@ export function IntegrationsClient({
           privacy_url: privacyUrl,
           ai_model: aiModel,
           default_ai_daily_limit: aiLimit,
+          gemini_api_key: geminiApiKey,
+          anthropic_api_key: anthropicApiKey,
+          fmp_api_key: fmpApiKey,
         }),
       });
       const data = await res.json();
@@ -168,11 +181,40 @@ export function IntegrationsClient({
       else {
         setHotmartHottok('');
         setWhopSecret('');
+        setGeminiApiKey('');
+        setAnthropicApiKey('');
+        setFmpApiKey('');
         setFeedback('Configuración guardada y aplicada en toda la plataforma.');
         router.refresh();
       }
     } catch {
       setErrorMsg('Error de red al guardar.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleClearSecret(
+    field: 'clear_gemini_api_key' | 'clear_anthropic_api_key' | 'clear_fmp_api_key',
+    label: string
+  ) {
+    setBusy(true);
+    setFeedback('');
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ [field]: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) setErrorMsg(data.error || `No se pudo limpiar ${label}`);
+      else {
+        setFeedback(`Llave guardada de ${label} eliminada del Panel Admin.`);
+        router.refresh();
+      }
+    } catch {
+      setErrorMsg('Error de red al limpiar la llave.');
     } finally {
       setBusy(false);
     }
@@ -281,58 +323,66 @@ export function IntegrationsClient({
       {feedback ? <p className="r21ok">{feedback}</p> : null}
       {errorMsg ? <p className="r21alert">{errorMsg}</p> : null}
 
-      {/* Estado de llaves de servidor */}
+      {/* Estado de llaves de conexión */}
       <div className="panel" style={{ marginBottom: 18 }}>
         <div className="ph" style={{ marginBottom: 10 }}>
-          <h2>Estado de Variables de Servidor (Vercel)</h2>
+          <h2>Estado de Conexiones (Panel Admin + Vercel)</h2>
         </div>
         <div className="inline" style={{ gap: 12 }}>
           <span className={`badge ${envStatus.supabaseServiceRole ? 'active' : 'past_due'}`}>
             {envStatus.supabaseServiceRole ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
             SUPABASE_SERVICE_ROLE_KEY:{' '}
-            {envStatus.supabaseServiceRole ? 'Conectada' : 'Pendiente agregar en Vercel'}
+            {envStatus.supabaseServiceRole ? 'Conectada (Vercel)' : 'Pendiente agregar en Vercel'}
           </span>
 
           <span
             className={`badge ${
-              envStatus.geminiApiKey ? 'active' : anyAiConnected ? 'paused' : 'past_due'
+              geminiConnected ? 'active' : anyAiConnected ? 'paused' : 'past_due'
             }`}
           >
-            {envStatus.geminiApiKey ? (
+            {geminiConnected ? (
               <CheckCircle2 size={14} />
             ) : anyAiConnected ? null : (
               <AlertTriangle size={14} />
             )}
-            GEMINI_API_KEY (Google Gemini):{' '}
-            {envStatus.geminiApiKey
-              ? 'Conectada'
-              : anyAiConnected
-                ? 'Opcional (Claude activa)'
-                : 'Pendiente en Vercel'}
+            Google Gemini (Mi Geny):{' '}
+            {secretFlags.hasGeminiApiKey
+              ? 'Conectada (Panel Admin)'
+              : envStatus.geminiApiKey
+                ? 'Conectada (Vercel)'
+                : anyAiConnected
+                  ? 'Opcional (otra IA activa)'
+                  : 'Pendiente'}
           </span>
 
           <span
             className={`badge ${
-              envStatus.anthropicApiKey ? 'active' : anyAiConnected ? 'paused' : 'past_due'
+              anthropicConnected ? 'active' : anyAiConnected ? 'paused' : 'past_due'
             }`}
           >
-            {envStatus.anthropicApiKey ? (
+            {anthropicConnected ? (
               <CheckCircle2 size={14} />
             ) : anyAiConnected ? null : (
               <AlertTriangle size={14} />
             )}
-            ANTHROPIC_API_KEY (Claude):{' '}
-            {envStatus.anthropicApiKey
-              ? 'Conectada'
-              : anyAiConnected
-                ? 'Opcional (Gemini activa)'
-                : 'Pendiente en Vercel'}
+            Anthropic Claude (Mi Geny):{' '}
+            {secretFlags.hasAnthropicApiKey
+              ? 'Conectada (Panel Admin)'
+              : envStatus.anthropicApiKey
+                ? 'Conectada (Vercel)'
+                : anyAiConnected
+                  ? 'Opcional (otra IA activa)'
+                  : 'Pendiente'}
           </span>
 
-          <span className={`badge ${envStatus.fmpApiKey ? 'active' : 'past_due'}`}>
-            {envStatus.fmpApiKey ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-            FMP_API_KEY (Radar y Precios):{' '}
-            {envStatus.fmpApiKey ? 'Conectada' : 'Pendiente en Vercel'}
+          <span className={`badge ${fmpConnected ? 'active' : 'past_due'}`}>
+            {fmpConnected ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+            FMP (Radar y Precios):{' '}
+            {secretFlags.hasFmpApiKey
+              ? 'Conectada (Panel Admin)'
+              : envStatus.fmpApiKey
+                ? 'Conectada (Vercel)'
+                : 'Pendiente'}
           </span>
         </div>
       </div>
@@ -643,6 +693,109 @@ export function IntegrationsClient({
                   disabled={!isAdmin}
                 />
               </label>
+            </div>
+
+            <div
+              style={{
+                borderTop: '1px solid var(--line)',
+                paddingTop: 12,
+                display: 'grid',
+                gap: 10,
+              }}
+            >
+              <div className="muted" style={{ fontSize: 12.5 }}>
+                Llaves privadas de IA y Mercado (se guardan protegidas en Supabase y tienen prioridad sobre las variables de Vercel; nunca se muestran de vuelta en pantalla):
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                {[
+                  {
+                    id: 'gemini-api-key',
+                    label: 'Google Gemini API Key',
+                    value: geminiApiKey,
+                    onChange: setGeminiApiKey,
+                    hasSaved: secretFlags.hasGeminiApiKey,
+                    hasEnv: envStatus.geminiApiKey,
+                    fallbackPlaceholder: 'AIzaSy...',
+                    clearField: 'clear_gemini_api_key' as const,
+                    clearLabel: 'Google Gemini',
+                  },
+                  {
+                    id: 'anthropic-api-key',
+                    label: 'Anthropic Claude API Key',
+                    value: anthropicApiKey,
+                    onChange: setAnthropicApiKey,
+                    hasSaved: secretFlags.hasAnthropicApiKey,
+                    hasEnv: envStatus.anthropicApiKey,
+                    fallbackPlaceholder: 'sk-ant-...',
+                    clearField: 'clear_anthropic_api_key' as const,
+                    clearLabel: 'Anthropic Claude',
+                  },
+                  {
+                    id: 'fmp-api-key',
+                    label: 'Financial Modeling Prep (FMP) API Key · Radar y Precios',
+                    value: fmpApiKey,
+                    onChange: setFmpApiKey,
+                    hasSaved: secretFlags.hasFmpApiKey,
+                    hasEnv: envStatus.fmpApiKey,
+                    fallbackPlaceholder: 'Tu API Key de FMP',
+                    clearField: 'clear_fmp_api_key' as const,
+                    clearLabel: 'FMP',
+                  },
+                ].map((item) => (
+                  <div key={item.id} style={{ display: 'grid', gap: 5, alignContent: 'start' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <label htmlFor={item.id}>{item.label}</label>
+                      {isAdmin && item.hasSaved ? (
+                        <button
+                          type="button"
+                          onClick={() => handleClearSecret(item.clearField, item.clearLabel)}
+                          disabled={busy}
+                          style={{
+                            background: 'none',
+                            border: 0,
+                            padding: 0,
+                            color: 'var(--muted)',
+                            fontSize: 12,
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Limpiar llave guardada
+                        </button>
+                      ) : null}
+                    </div>
+                    <input
+                      id={item.id}
+                      type="password"
+                      autoComplete="off"
+                      value={item.value}
+                      onChange={(e) => item.onChange(e.target.value)}
+                      placeholder={
+                        item.hasSaved
+                          ? '•••••••• (Guardada en Panel Admin — escribe para reemplazar)'
+                          : item.hasEnv
+                            ? 'Conectada en Vercel (escribe aquí si deseas reemplazarla)'
+                            : item.fallbackPlaceholder
+                      }
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {isAdmin ? (

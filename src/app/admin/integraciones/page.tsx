@@ -39,6 +39,9 @@ export default async function AdminIntegracionesPage() {
   const secretFlags = {
     hasHotmartHottok: Boolean(settings?.hotmart_hottok),
     hasWhopSecret: Boolean(settings?.whop_webhook_secret),
+    hasGeminiApiKey: Boolean(settings?.gemini_api_key?.trim()),
+    hasAnthropicApiKey: Boolean(settings?.anthropic_api_key?.trim()),
+    hasFmpApiKey: Boolean(settings?.fmp_api_key?.trim()),
   };
 
   const maskedSettings = settings
@@ -46,6 +49,9 @@ export default async function AdminIntegracionesPage() {
         ...settings,
         hotmart_hottok: '',
         whop_webhook_secret: '',
+        gemini_api_key: '',
+        anthropic_api_key: '',
+        fmp_api_key: '',
       }
     : null;
 
