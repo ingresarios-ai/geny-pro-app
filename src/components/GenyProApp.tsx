@@ -103,7 +103,10 @@ export function GenyProApp({
               </button>
               <button type="button" data-ui="guided" aria-pressed="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
                 </svg>
                 Nueva
               </button>
@@ -169,36 +172,34 @@ export function GenyProApp({
         type="button"
         className="geny-fab"
         id="genyFab"
-        aria-label="Pregúntale a Geny"
+        aria-label="Abrir consola Geny AI"
         aria-expanded="false"
         aria-controls="genyDrawer"
         hidden
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-          <path d="M4 5h16v11H9l-5 4z" />
-          <circle cx="9" cy="10.5" r=".9" fill="currentColor" />
-          <circle cx="12" cy="10.5" r=".9" fill="currentColor" />
-          <circle cx="15" cy="10.5" r=".9" fill="currentColor" />
-        </svg>
-        <span>Pregúntale a Geny</span>
+        <span className="g-led" aria-hidden="true" />
+        <span>Geny AI</span>
       </button>
 
-      <dialog className="geny-drawer" id="genyDrawer" aria-label="Mentora Mi Geny">
+      <dialog className="geny-drawer" id="genyDrawer" aria-label="Consola Geny AI">
         <div className="geny-drawer-scroller" id="genyDrawerScroller">
           <div className="geny-drawer-sheet" id="genyDrawerSheet">
             <div className="geny-drawer-head">
-              <div>
-                <strong>Mi Geny</strong>
-                <span className="muted" style={{ display: 'block', fontSize: 12 }}>
-                  Mentora IA · consulta o registra sin salir de tu vista
-                </span>
+              <div className="inline" style={{ gap: 10, flexWrap: 'nowrap' }}>
+                <div className="geny-drawer-avatar" id="dAvatar" />
+                <div>
+                  <strong>Geny AI · Co-Pilot</strong>
+                  <span className="muted" style={{ display: 'block', fontSize: 12 }}>
+                    Co-Pilot cuantitativo · consulta o ejecuta registros
+                  </span>
+                </div>
               </div>
               <div className="inline" style={{ gap: 6 }}>
                 <button
                   type="button"
                   className="btn sm ghost"
                   id="genyDrawerFull"
-                  title="Abrir chat en pantalla completa"
+                  title="Abrir consola en pantalla completa"
                 >
                   Expandir
                 </button>
@@ -206,7 +207,7 @@ export function GenyProApp({
                   type="button"
                   className="x"
                   id="genyDrawerClose"
-                  aria-label="Cerrar panel de Geny"
+                  aria-label="Cerrar panel de Geny AI"
                   autoFocus
                   style={{ fontSize: 18, padding: '4px 8px' }}
                 >

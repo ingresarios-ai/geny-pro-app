@@ -329,7 +329,24 @@ const BOT=`<svg viewBox="0 0 300 320" aria-label="Geny, tu mentora" role="img">
 <path d="M232 230l40-46" stroke="#8CFF2E" stroke-width="5" stroke-linecap="round"/><path d="M258 182h16v16" stroke="#8CFF2E" stroke-width="5" fill="none" stroke-linecap="round"/>
 </svg>`;
 
-function ring(p,size=150,sw=16){const r=(size-sw)/2,c=2*Math.PI*r;return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="#1B2631" stroke-width="${sw}" fill="none"/><circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="url(#rg)" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-dasharray="${c*p/100} ${c}"/><defs><linearGradient id="rg"><stop offset="0" stop-color="#C8FF2E"/><stop offset="1" stop-color="#3FD800"/></linearGradient></defs></svg>`}
+const BOT_PRO=`<svg viewBox="0 0 120 120" aria-label="Geny AI" role="img">
+<defs>
+  <linearGradient id="gpBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#141D26"/><stop offset="100%" stop-color="#080C11"/></linearGradient>
+  <linearGradient id="gpShell" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#243140"/><stop offset="55%" stop-color="#131B24"/><stop offset="100%" stop-color="#0B1017"/></linearGradient>
+  <linearGradient id="gpVisor" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#05080C"/><stop offset="50%" stop-color="#0A1318"/><stop offset="100%" stop-color="#05080C"/></linearGradient>
+</defs>
+<rect x="4" y="4" width="112" height="112" rx="22" fill="url(#gpBg)" stroke="#243242" stroke-width="1.2"/>
+<path d="M18 14h10M92 14h10M18 106h10M92 106h10" stroke="#33465A" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M40 24h40l14 16v30l-12 16H38L26 70V40z" fill="url(#gpShell)" stroke="#384B61" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M44 24v8h32v-8" fill="none" stroke="#2C3D50" stroke-width="1"/>
+<rect x="31" y="44" width="58" height="18" rx="4" fill="url(#gpVisor)" stroke="#7CE828" stroke-opacity=".42" stroke-width="1"/>
+<path class="gp-wave" d="M36 53h11l3.5-5 4.5 10 4-7 3.5 4 3-2H84" fill="none" stroke="#7CE828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="36" cy="53" r="1.6" fill="#7CE828"/><circle cx="84" cy="53" r="1.6" fill="#38BDF8"/>
+<path d="M36 86l8 14h32l8-14" fill="#0E151D" stroke="#28384A" stroke-width="1.1"/>
+<path d="M60 89l6.5 11h-3.6L60 95l-2.9 5h-3.6z" fill="#7CE828"/><path d="M60 95l2.9 5h-5.8z" fill="#3E8F00"/>
+</svg>`;
+
+function ring(p,size=150,sw=16){const r=(size-sw)/2,c=2*Math.PI*r,pro=isGuided(),id=pro?'rgPro':'rg';return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="#1B2631" stroke-width="${sw}" fill="none"/><circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="url(#${id})" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-dasharray="${c*p/100} ${c}"/><defs><linearGradient id="${id}"><stop offset="0" stop-color="${pro?'#10B981':'#C8FF2E'}"/><stop offset="1" stop-color="${pro?'#7CE828':'#3FD800'}"/></linearGradient></defs></svg>`}
 const AREAS=[['fin','Finanzas','bars','var(--profit)'],['tra','Trading','candles','var(--violet)'],['men','Mentalidad','lotus','var(--cyan)'],['hab','Hábitos','bolt','var(--amber)']];
 const areaBars=s=>AREAS.map(([k,l,i,c])=>`<div class="area"><div class="lbl"><span style="color:${c}">${ic(i)}<span style="color:var(--fg)">${l}</span></span><span class="num">${s[k]}%</span></div><div class="bar"><i style="width:${s[k]}%;background:${c}"></i></div></div>`).join('');
 const PEDEM=[['planear','Planear','Definir mi plan de la semana'],['ejecutar','Ejecutar','Operar según mi estrategia'],['documentar','Documentar','Registrar mis operaciones'],['evaluar','Evaluar','Analizar mis resultados'],['mejorar','Mejorar','Ajustar y optimizar']];
@@ -339,16 +356,16 @@ const DAREAS=[['finanzas','Mis finanzas personales','wallet','var(--amber)'],['i
 function inicioGuided(){
   const s=scores(),d=retoDia(),f=finanzas(),t=tstats(),hoy=today();
   const tradesHoy=S.trades.filter(x=>x.fecha===hoy).length,movsHoy=S.movs.filter(x=>x.fecha===hoy).length;
-  const welcome=(S.ejemplo&&!S.onboarded)?`
-    <section class="g-welcome" aria-label="Bienvenida a Geny Pro">
-      <div class="g-welcome-bot">${BOT}</div>
+  const demoBar=(S.ejemplo&&!S.onboarded)?`
+    <section class="panel g-demo-bar" aria-label="Modo demostración">
       <div>
-        <h2>¡Hola, ${esc(S.nombre)}! Estás viendo datos de prueba</h2>
-        <p>Cargamos movimientos, operaciones y metas de ejemplo para que veas cómo se llena la plataforma. ¿Cómo prefieres empezar?</p>
-        <div class="inline">
-          <button type="button" class="btn" data-act="startFresh">Empezar desde cero con mis datos</button>
-          <button type="button" class="btn ghost" data-act="keepDemo">Explorar primero con el ejemplo</button>
-        </div>
+        <span class="g-eyebrow">ENTORNO DE DEMOSTRACIÓN</span>
+        <strong>Estás visualizando registros simulados para evaluar la terminal.</strong>
+        <span class="muted" style="font-size:13px">Inicializa tu cuenta en limpio antes de registrar operaciones o capital real.</span>
+      </div>
+      <div class="inline">
+        <button type="button" class="btn sm" data-act="startFresh">Inicializar cuenta en cero</button>
+        <button type="button" class="btn sm ghost" data-act="keepDemo">Mantener vista demo</button>
       </div>
     </section>`:'';
 
@@ -359,43 +376,73 @@ function inicioGuided(){
     const d2=!S.ejemplo&&(S.movs.length>0||S.trades.length>0);
     const d3=!S.ejemplo&&S.reto.hechos.length>0;
     roadDone=(d1?1:0)+(d2?1:0)+(d3?1:0);
-    roadTitle='Por dónde empezar · Tus 3 primeros pasos';
+    roadTitle='PROTOCOLO DE CONFIGURACIÓN';
     steps=[
-      {done:d1,tag:'Paso 1 · 1 min',t:'Personaliza tu plan',p:d1?'Diagnóstico completo. Ya puedes repetirlo cuando quieras.':'Responde 4 bloques breves sobre tus finanzas, trading y mentalidad.',btn:`<button type="button" class="btn ${d1?'sm ghost':''}" data-act="diag">${d1?'Repetir diagnóstico':'Comenzar diagnóstico'}</button>`},
-      {done:d2,tag:'Paso 2 · Tu base',t:'Registra tu primer dato real',p:d2?'Ya tienes registros reales cargados en tu cuenta.':'Anota tu primer ingreso/gasto en Finanzas o guarda una operación en tu bitácora.',btn:`<div class="inline"><button type="button" class="btn sm ${d1&&!d2?'':'ghost'}" data-go="dinero">Ir a Mi Dinero</button><button type="button" class="btn sm ghost" data-act="nuevoTrade">+ Trade</button></div>`},
-      {done:d3,tag:`Paso 3 · Día ${d}/21`,t:'Arranca tu Reto 21',p:esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${d1&&d2&&!d3?'':'ghost'}" data-go="reto21">Abrir Reto 21</button>`}
+      {done:d1,tag:'01 · CALIBRACIÓN',t:'Perfil de riesgo y metas',p:d1?'Parámetros calibrados. Puedes recalibrar en cualquier momento.':'Define experiencia, reglas base y objetivo financiero medible (1 min).',btn:`<button type="button" class="btn sm ${d1?'ghost':''}" data-act="diag">${d1?'Recalibrar perfil':'Calibrar perfil'}</button>`},
+      {done:d2,tag:'02 · LÍNEA BASE',t:'Flujo de capital o bitácora',p:d2?'Registros base detectados en cuenta.':'Registra tu capital operativo en Finanzas o documenta tu primera ejecución.',btn:`<div class="inline"><button type="button" class="btn sm ${d1&&!d2?'':'ghost'}" data-go="dinero">Finanzas</button><button type="button" class="btn sm ghost" data-act="nuevoTrade">+ Operación</button></div>`},
+      {done:d3,tag:`03 · CONSISTENCIA · DÍA ${d}/21`,t:`Sesión ${d} del Reto 21`,p:esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${d1&&d2&&!d3?'':'ghost'}" data-go="reto21">Abrir Reto 21</button>`}
     ];
   }else{
     const c1=!!S.checks[hoy],c2=tradesHoy>0||movsHoy>0,c3=S.reto.hechos.includes(hoy);
     roadDone=(c1?1:0)+(c2?1:0)+(c3?1:0);
-    roadTitle='Tu rutina de hoy en 3 minutos';
+    roadTitle='PROTOCOLO DE SESIÓN DIARIA';
     steps=[
-      {done:c1,tag:'1 · Antes de operar',t:'Check-in mental y hábitos',p:c1?`Check-in de hoy listo (control ${S.checks[hoy]?.control||'–'}/5).`:'Mide tu ánimo, energía y control emocional en 1 minuto antes de abrir gráficos.',btn:`<button type="button" class="btn sm ${c1?'ghost':''}" data-go="mentalidad">${c1?'Ver check-in':'Hacer check-in'}</button>`},
-      {done:c2,tag:'2 · En el día',t:'Ejecuta y documenta',p:c2?`Hoy registraste ${tradesHoy} operaci${tradesHoy===1?'ón':'ones'} y ${movsHoy} movimiento(s).`:'Anota tu operación apenas la cierres o actualiza tus gastos del día.',btn:`<div class="inline"><button type="button" class="btn sm ${c1&&!c2?'':'ghost'}" data-act="nuevoTrade">+ Operación</button><button type="button" class="btn sm ghost" data-go="dinero">+ Finanzas</button></div>`},
-      {done:c3,tag:`3 · Día ${d} de 21`,t:'Cierra tu misión del Reto',p:c3?'¡Misión de hoy completada! Vuelve mañana por la siguiente.':esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${c1&&c2&&!c3?'':'ghost'}" data-go="reto21">${c3?'Ver bitácora del día':'Completar día '+d}</button>`}
+      {done:c1,tag:'01 · PRE-MERCADO',t:'Estado cognitivo y reglas',p:c1?`Check-in validado hoy (control ${S.checks[hoy]?.control||'–'}/5).`:'Evalúa ánimo, energía y control emocional antes de abrir gráficos.',btn:`<button type="button" class="btn sm ${c1?'ghost':''}" data-go="mentalidad">${c1?'Ver registro':'Hacer check-in'}</button>`},
+      {done:c2,tag:'02 · EJECUCIÓN',t:'Bitácora y flujo diario',p:c2?`${tradesHoy} operaci${tradesHoy===1?'ón':'ones'} y ${movsHoy} movimiento(s) hoy.`:'Documenta entradas, salidas, múltiplo R y apego al plan de trading.',btn:`<div class="inline"><button type="button" class="btn sm ${c1&&!c2?'':'ghost'}" data-act="nuevoTrade">+ Operación</button><button type="button" class="btn sm ghost" data-go="dinero">+ Finanzas</button></div>`},
+      {done:c3,tag:`03 · CIERRE · DÍA ${d}/21`,t:'Revisión post-mercado',p:c3?'Sesión de hoy auditada y cerrada.':esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${c1&&c2&&!c3?'':'ghost'}" data-go="reto21">${c3?'Ver bitácora':'Cerrar día '+d}</button>`}
     ];
   }
   const curIdx=steps.findIndex(x=>!x.done);
+  const brief=!S.diag.hecho
+    ?'Perfil técnico pendiente de calibración. Completa el diagnóstico inicial para parametrizar tu gestión de riesgo y objetivos.'
+    :t.n>0
+      ?`Bitácora activa: ${t.n} operaciones con ${(t.plan*100).toFixed(0)}% de apego al plan y expectativa de ${money(+t.exp.toFixed(2))} por trade. ${S.checks[hoy]?'Check-in pre-mercado validado hoy.':'Pendiente validar check-in pre-mercado de hoy.'}`
+      :'Cuenta inicializada en limpio. Registra tu línea base en Finanzas o documenta tu primera ejecución en Bitácora.';
 
   return `<div class="g-home">
-    ${welcome}
-    <div class="g-hero">
-      <div><h1>¡Hola, ${esc(S.nombre)}!</h1><p>${isSetup?'Sigue estos 3 pasos en orden para dejar tu espacio listo hoy mismo.':'Aquí tienes tu ruta diaria, tu progreso y tus herramientas en un solo vistazo.'}</p></div>
+    ${demoBar}
+    <div class="g-topbar">
+      <div>
+        <span class="g-eyebrow">TERMINAL OPERATIVA · ${hoy}${S.ejemplo?' · DEMO':''}</span>
+        <h1>Panel de ${esc(S.nombre)}</h1>
+      </div>
       <div class="inline">
-        <button type="button" class="btn sm ghost" data-act="openGeny">${ic('chat')}Preguntarle a Geny</button>
-        <button type="button" class="btn sm" data-act="nuevoTrade">${ic('candles')}Registrar operación</button>
+        <button type="button" class="btn sm ghost" data-go="dinero">${ic('wallet')}Registrar flujo</button>
+        <button type="button" class="btn sm" data-act="nuevoTrade">${ic('candles')}Nueva operación</button>
       </div>
     </div>
 
+    <div class="g-ribbon">
+      <div class="g-kpi"><span class="g-eyebrow">P&amp;L NETO BITÁCORA</span><b class="num ${t.total>=0?'up':'down'}">${money(+t.total.toFixed(2))}</b><small class="num">${t.n} ops · WR ${(t.wr*100).toFixed(0)}%</small></div>
+      <div class="g-kpi"><span class="g-eyebrow">DISCIPLINA &amp; FACTOR</span><b class="num">${(t.plan*100).toFixed(0)}%</b><small class="num">PF ${t.pf===Infinity?'∞':t.pf.toFixed(2)} · Exp ${money(+t.exp.toFixed(2))}</small></div>
+      <div class="g-kpi"><span class="g-eyebrow">LIQUIDEZ DISPONIBLE</span><b class="num ${f.bal<0?'down':'up'}">${money(Math.round(f.bal))}</b><small class="num">Tasa ahorro ${(f.tasa*100).toFixed(1)}%</small></div>
+      <div class="g-kpi"><span class="g-eyebrow">PROTOCOLO RETO 21</span><b class="num">Día ${d}/21</b><small class="num">${S.reto.hechos.length} sesiones cerradas</small></div>
+    </div>
+
+    <section class="panel g-copilot" aria-label="Geny AI Co-Pilot">
+      <div class="g-copilot-avatar">${BOT_PRO}</div>
+      <div class="g-copilot-body">
+        <div class="g-copilot-head">
+          <span class="g-eyebrow"><i class="g-led"></i>GENY AI · CO-PILOT CUANTITATIVO</span>
+          <button type="button" class="btn sm ghost" data-act="openGeny">Abrir consola IA</button>
+        </div>
+        <p class="g-copilot-brief">${esc(brief)}</p>
+        <form class="g-copilot-form" id="gQuickGeny">
+          <input id="gQuickQ" type="text" placeholder="Consulta a Geny AI sobre riesgo, métricas, opciones o registra una operación…" aria-label="Consulta rápida para Geny AI">
+          <button type="submit" class="btn sm">Analizar</button>
+        </form>
+      </div>
+    </section>
+
     <section class="panel glow">
       <div class="g-roadmap-head">
-        <h2>${roadTitle}</h2>
-        <span class="badge active num">${roadDone}/3 completados</span>
+        <span class="g-eyebrow">${roadTitle}</span>
+        <span class="tag up num">${roadDone}/3 completados</span>
       </div>
       <div class="g-steps">
         ${steps.map((st,i)=>`<div class="g-step ${st.done?'done':i===curIdx?'cur':''}">
           <div>
-            <div class="g-step-top"><span class="g-step-num">${st.done?'✓':i+1}</span><span class="tag ${st.done?'up':''}">${st.tag}</span></div>
+            <div class="g-step-top"><span class="g-step-num">${st.done?'✓':'0'+(i+1)}</span><span class="g-eyebrow">${st.tag}</span></div>
             <h3>${st.t}</h3>
             <p>${st.p}</p>
           </div>
@@ -406,21 +453,16 @@ function inicioGuided(){
 
     <div class="g-summary">
       <div class="panel">
-        <div class="ph"><h2>Mi progreso general</h2><button class="btn sm ghost" data-go="progreso">Ver PEDEM y detalle →</button></div>
-        <div class="ringwrap"><div class="ring">${ring(s.gen)}<b>${s.gen}%</b></div><div class="areas">${areaBars(s)}</div></div>
+        <div class="ph"><span class="g-eyebrow">ÍNDICE DE DESEMPEÑO INTEGRAL</span><button class="btn sm ghost" data-go="progreso">Ciclo PEDEM →</button></div>
+        <div class="ringwrap"><div class="ring">${ring(s.gen,132,12)}<b>${s.gen}%</b></div><div class="areas">${areaBars(s)}</div></div>
       </div>
       <div class="panel">
-        <div class="ph"><h2>Pulso rápido y herramientas</h2><span class="muted num" style="font-size:12.5px">Día ${d}/21</span></div>
-        <div class="g-kpis">
-          <div class="g-kpi"><span>Disponible</span><b class="${f.bal<0?'down':'up'}">${money(Math.round(f.bal))}</b></div>
-          <div class="g-kpi"><span>Trading P&amp;L</span><b class="${t.total>=0?'up':'down'}">${money(+t.total.toFixed(2))}</b></div>
-          <div class="g-kpi"><span>Reto 21</span><b>${S.reto.hechos.length}/21</b></div>
-        </div>
+        <div class="ph"><span class="g-eyebrow">MÓDULOS DE ANÁLISIS Y EJECUCIÓN</span></div>
         <div class="g-tools">
-          <button type="button" class="btn sm ghost" data-go="radar">${ic('radar')}Escanear Radar</button>
-          <button type="button" class="btn sm ghost" data-go="opciones">${ic('payoff')}Simular Opciones</button>
-          <button type="button" class="btn sm ghost" data-go="replay">${ic('play')}Market Replay</button>
-          <button type="button" class="btn sm ghost" data-go="metas">${ic('target')}Mis Metas (${S.metas.length})</button>
+          <button type="button" class="g-mod-btn" data-go="radar">${ic('radar')}<span><b>Radar de Mercado</b><small>Tendencia multi-marco y VR</small></span></button>
+          <button type="button" class="g-mod-btn" data-go="opciones">${ic('payoff')}<span><b>Estrategias Opciones</b><small>Black-Scholes y griegas</small></span></button>
+          <button type="button" class="g-mod-btn" data-go="replay">${ic('play')}<span><b>Market Replay</b><small>Simulación y Volume Profile</small></span></button>
+          <button type="button" class="g-mod-btn" data-go="metas">${ic('target')}<span><b>Objetivos Capital</b><small>${S.metas.length} meta(s) activas</small></span></button>
         </div>
       </div>
     </div>
@@ -473,6 +515,13 @@ inicio(){
 },
 
 geny(){
+  if(isGuided()){
+    return `<div class="vhead"><div class="inline" style="gap:12px;align-items:center"><div class="g-vhead-bot">${BOT_PRO}</div><div><span class="g-eyebrow">CONSOLA IA · INGRESARIOS</span><h1>Geny AI · Co-Pilot Operativo</h1><p>Análisis sobre tu bitácora, gestión de riesgo, estructura de opciones y finanzas.</p></div></div></div>
+    <div class="chips">${['¿Qué patrón ves en mi bitácora?','¿Cómo voy con mi tasa de ahorro?','Dame mi plan PEDEM para esta semana','Registra un gasto de $45 en comida'].map(c=>`<button class="chip" data-act="chip">${c}</button>`).join('')}</div>
+    <div class="panel chat"><div class="msgs" id="msgs">${S.chat.length?S.chat.map(m=>`<div class="msg ${m.role==='user'?'me':'g'}">${esc(m.content)}</div>`).join(''):`<div class="msg g">Sesión iniciada, ${esc(S.nombre)}. Veo ${S.trades.length} operaciones en bitácora y ${S.movs.length} movimientos registrados. ¿Qué analizamos hoy?</div>`}</div>
+    <form class="compose" id="compose"><textarea id="q" placeholder="Escribe una consulta cuantitativa o pídeme registrar un movimiento/trade…" aria-label="Mensaje para Geny AI"></textarea><button class="btn" id="send">Enviar</button></form></div>
+    <p class="risk">Herramienta educativa. No constituye asesoría financiera personalizada ni recomendación de compra o venta; operar implica riesgo de pérdida.</p>`;
+  }
   return `<div class="vhead"><div><h1>Mi Geny</h1><p>Pregúntame sobre tus finanzas, tu bitácora o tu mentalidad. Leo tus datos para darte respuestas concretas y puedo registrar operaciones, movimientos y metas por ti.</p></div></div>
   <div class="chips">${['¿Qué patrón ves en mi bitácora?','¿Cómo voy con mi tasa de ahorro?','Dame mi plan para esta semana','Registra un gasto de $45 en comida'].map(c=>`<button class="chip" data-act="chip">${c}</button>`).join('')}</div>
   <div class="panel chat"><div class="msgs" id="msgs">${S.chat.length?S.chat.map(m=>`<div class="msg ${m.role==='user'?'me':'g'}">${esc(m.content)}</div>`).join(''):`<div class="msg g">¡Hola, ${esc(S.nombre)}! Soy Geny. Veo ${S.trades.length} operaciones en tu bitácora y ${S.movs.length} movimientos de dinero. ¿Por dónde empezamos?</div>`}</div>
@@ -1098,6 +1147,7 @@ document.addEventListener('submit',e=>{
   e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));
   if(f.id==='compose'){sendChat(false);return}
   if(f.id==='dCompose'){sendChat(true);return}
+  if(f.id==='gQuickGeny'){const qEl=$('#gQuickQ'),v=(qEl?.value||'').trim();if(qEl)qEl.value='';if(!v){openGenyDrawer();return}openGenyDrawer().then(()=>{const dq=$('#dQ');if(dq){dq.value=v;sendChat(true)}});return}
   const k=f.dataset.form;
   if(k==='mov'){S.movs.push({id:uid(),fecha:d.fecha||today(),tipo:d.tipo,cat:d.cat.trim(),monto:+d.monto,nota:d.nota});toast('Movimiento guardado')}
   if(k==='r21plan'||k==='r21rev'){
@@ -1153,9 +1203,10 @@ function drawerChipsFor(r){
   }[r])||['¿Por dónde empiezo hoy?','¿Qué patrón ves en mi bitácora?','¿Cómo va mi tasa de ahorro?','Registra un gasto de $45 en comida'];
 }
 function renderDrawerChat(){
-  const chips=$('#dChips'),dm=$('#dMsgs');
+  const chips=$('#dChips'),dm=$('#dMsgs'),av=$('#dAvatar');
+  if(av&&!av.innerHTML)av.innerHTML=BOT_PRO;
   if(chips)chips.innerHTML=drawerChipsFor(route()).map(c=>`<button type="button" class="chip">${esc(c)}</button>`).join('');
-  if(dm)dm.innerHTML=S.chat.length?S.chat.map(m=>`<div class="msg ${m.role==='user'?'me':'g'}">${esc(m.content)}</div>`).join(''):`<div class="msg g">¡Hola, ${esc(S.nombre)}! Pregúntame lo que quieras sobre esta vista o pídeme registrar una operación, gasto o meta sin salir de aquí.</div>`;
+  if(dm)dm.innerHTML=S.chat.length?S.chat.map(m=>`<div class="msg ${m.role==='user'?'me':'g'}">${esc(m.content)}</div>`).join(''):`<div class="msg g">Consola Geny AI lista, ${esc(S.nombre)}. Consulta sobre el módulo actual o pídeme registrar una operación, gasto o meta.</div>`;
   afterChat();
 }
 const gd=$('#genyDrawer'),gdSc=$('#genyDrawerScroller'),gdSh=$('#genyDrawerSheet'),gdFab=$('#genyFab'),gdClose=$('#genyDrawerClose'),gdFull=$('#genyDrawerFull');
