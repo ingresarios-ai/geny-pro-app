@@ -113,7 +113,6 @@ export function IntegrationsClient({
 
   const geminiConnected = secretFlags.hasGeminiApiKey || envStatus.geminiApiKey;
   const anthropicConnected = secretFlags.hasAnthropicApiKey || envStatus.anthropicApiKey;
-  const fmpConnected = secretFlags.hasFmpApiKey || envStatus.fmpApiKey;
   const anyAiConnected = geminiConnected || anthropicConnected;
 
   // Simulator state
@@ -444,14 +443,14 @@ export function IntegrationsClient({
                   : 'Pendiente'}
           </span>
 
-          <span className={`badge ${fmpConnected ? 'active' : 'past_due'}`}>
-            {fmpConnected ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-            FMP (Radar y Precios):{' '}
+          <span className="badge active">
+            <CheckCircle2 size={14} />
+            Precios y Radar:{' '}
             {secretFlags.hasFmpApiKey
-              ? 'Conectada (Panel Admin)'
+              ? 'FMP Pro (Panel Admin)'
               : envStatus.fmpApiKey
-                ? 'Conectada (Vercel)'
-                : 'Pendiente'}
+                ? 'FMP Pro (Vercel)'
+                : 'Activo gratis (Yahoo Finance · FMP opcional)'}
           </span>
         </div>
       </div>
