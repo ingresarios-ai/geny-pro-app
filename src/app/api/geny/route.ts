@@ -580,7 +580,7 @@ export async function POST(request: Request) {
           }
         : {}),
       generationConfig: {
-        maxOutputTokens: 1500,
+        maxOutputTokens: 4096,
         temperature: 0.6,
       },
     };
@@ -713,7 +713,7 @@ export async function POST(request: Request) {
     },
     body: JSON.stringify({
       model: activeModel,
-      max_tokens: 750,
+      max_tokens: 1400,
       system: systemText,
       messages: sanitizeAnthropicMessages(messages),
       ...(tools.length ? { tools } : {}),

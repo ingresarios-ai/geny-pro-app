@@ -757,7 +757,7 @@ export function IntegrationsClient({
                   type="url"
                   value={privacyUrl}
                   onChange={(e) => setPrivacyUrl(e.target.value)}
-                  placeholder="https://ingresarios.net/privacidad"
+                  placeholder="https://ingresarios.ai/privacidad"
                   disabled={!isAdmin}
                 />
               </label>

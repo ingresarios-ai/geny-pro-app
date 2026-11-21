@@ -1279,17 +1279,21 @@ function setTool(t){R.tool=t;document.querySelectorAll('[data-r="tool"]').forEac
 async function loadReal(){
   const sym=$('#rp-sym').value.trim().toUpperCase(),from=$('#rp-from').value,to=$('#rp-to').value,interval=$('#rp-int').value;
   if(!sym){toast('Escribe un símbolo, por ejemplo SPY');return}
-  if(interval!=='1day'&&interval!=='1week'){toast('En esta vista hay velas diarias de FMP. Para intradía sube un CSV o usa la app con servidor');return}
   const mcp=window.claude?.use?await claude.use('mcp'):null;
   if(!mcp){toast('Los precios no están disponibles por ahora. Usa CSV o datos simulados');return}
   R.interval=interval;R.loading=true;stopPlay();toast(`Cargando ${sym}…`);
   try{
-    const res=await mcp.callTool('FMP','chart',{endpoint:'historical-price-eod-full',symbol:sym,from_date:from,to_date:to});
+    const res=await mcp.callTool('FMP','chart',{endpoint:'historical-price-eod-full',symbol:sym,from_date:from,to_date:to,interval});
     let rows=res?.payload;if(rows&&!Array.isArray(rows))rows=rows.historical||rows.data||rows.results;
     if(!Array.isArray(rows)||!rows.length)throw new Error(`No encontré datos para ${sym} en esas fechas.`);
     const bars=rows.map(x=>({time:Date.parse(x.date)/1000,open:+x.open,high:+x.high,low:+x.low,close:+x.close,volume:+x.volume||0}));
-    if(!setBars(bars,sym,'FMP (diario)',INT_SEC[interval]))throw new Error(R.err);
-    R.aviso='';R.loading=false;render();
+    const prov=(res?.provider||res?.source)==='fmp'?'FMP':'Yahoo Finance';
+    const intLbl={'1week':'semanal','1day':'diario','4hour':'1h → 4h','1hour':'1h','30min':'30m','15min':'15m','5min':'5m','1min':'1m'}[interval]||interval;
+    if(!setBars(bars,sym,`${prov} (${intLbl})`,INT_SEC[interval]))throw new Error(R.err);
+    const maxD={'1min':7,'5min':58,'15min':58,'30min':58,'1hour':720,'4hour':720}[interval];
+    const spanD=(from&&to)?(Date.parse(to)-Date.parse(from))/864e5:0;
+    R.aviso=(res?.clampedDays||(maxD&&spanD>maxD))?`Para velas de ${intLbl}, el historial gratuito cubre los últimos ${res?.clampedDays||maxD} días.`:'';
+    R.loading=false;render();
   }catch(e){R.loading=false;toast(e?.code==='server_not_connected'?'Los precios no están disponibles por ahora. Usa CSV o datos simulados':e?.message||'No pude cargar los datos. Intenta de nuevo')}
 }
 function loadCSV(file){
@@ -1322,6 +1326,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('submit',e=>{if(e.target.id==='rpLoad'){e.preventDefault();e.stopImmediatePropagation();loadReal()}},true);
 document.addEventListener('change',e=>{
+  if(e.target.id==='rp-int'){R.interval=e.target.value;const fr=$('#rp-from');if(fr){const d={'1min':7,'5min':30,'15min':30,'30min':30,'1hour':90,'4hour':120,'1day':730,'1week':1095}[R.interval]||30;fr.value=daysAgo(d)}}
   if(e.target.id==='rp-csv'&&e.target.files[0])loadCSV(e.target.files[0]);
   if(e.target.id==='rp-speed'){R.speed=+e.target.value;if(R.playing){clearInterval(R.timer);R.timer=setInterval(step,1000/R.speed)}}
   if(e.target.id==='rp-estilo'&&S){S.ind={...(S.ind||{}),estilo:e.target.value};save();applyInd()}
@@ -1611,7 +1616,7 @@ async function opcLoad(){
     const last=cl[cl.length-1],w=cl.slice(-31),rets=w.slice(1).map((x,i)=>Math.log(x.c/w[i].c));let hv=null;
     if(rets.length>=10){const mu=rets.reduce((a,b)=>a+b,0)/rets.length;hv=Math.sqrt(rets.reduce((a,b)=>a+(b-mu)**2,0)/(rets.length-1)*252)*100}
     o.sym=sym;o.spot=+last.c.toFixed(2);if(hv)o.iv=Math.max(5,Math.round(hv));
-    o.src=`Último cierre de ${sym}: ${last.d} (FMP).`+(hv?' La volatilidad es una estimación con los últimos 30 días; ajústala a la IV que ves en tu bróker.':'');
+    o.src=`Último cierre de ${sym}: ${last.d} (${(res?.provider||res?.source)==='fmp'?'FMP':'Yahoo Finance'}).`+(hv?' La volatilidad es una estimación con los últimos 30 días; ajústala a la IV que ves en tu bróker.':'');
     opcSet(o,opcTplOf(o.tpl)?o.tpl:'Bull call spread');save();render();toast(`${sym} a ${o.spot}. Strikes recentrados`);
   }catch(e){toast(e?.code==='server_not_connected'?'Los precios no están disponibles por ahora. Escribe el precio a mano':e?.message||'No pude traer el precio. Escríbelo a mano')}
 }
@@ -1676,9 +1681,9 @@ const RD_N={SPY:'S&P 500',QQQ:'Nasdaq 100',IWM:'Russell 2000',DIA:'Dow Jones',TL
 const RD_ETF=['SPY','QQQ','IWM','DIA','TLT','GLD','SLV','XLF','XLE','XLK','SMH','EEM','FXI','HYG','KRE','ARKK','XBI','USO','GDX','EWZ'];
 const RD_T30=['SPY','QQQ','IWM','NVDA','TSLA','AAPL','AMZN','MSFT','META','GOOGL','AMD','PLTR','NFLX','AVGO','MU','INTC','BAC','JPM','COIN','MSTR','SOFI','UBER','TLT','GLD','SLV','XLF','XLE','SMH','BABA','DIS'];
 const RD_T60=[...RD_T30,'DIA','EEM','FXI','HYG','KRE','ARKK','XBI','GDX','BA','XOM','CVX','WMT','COST','PYPL','CRM','ORCL','QCOM','TSM','NIO','F','GM','C','WFC','GS','PFE','LLY','UNH','V','HOOD','SHOP'];
-const RD={rows:{},earn:{},at:'',busy:false,done:0,total:0,err:''};
-try{const c=JSON.parse(localStorage.getItem('genyRadar:'+(BOOT.userId||'anon')));if(c&&c.rows){RD.rows=c.rows;RD.earn=c.earn||{};RD.at=c.at||''}}catch(e){}
-const rdSave=()=>{try{localStorage.setItem('genyRadar:'+(BOOT.userId||'anon'),JSON.stringify({rows:RD.rows,earn:RD.earn,at:RD.at}))}catch(e){}};
+const RD={rows:{},earn:{},at:'',src:'',busy:false,done:0,total:0,err:''};
+try{const c=JSON.parse(localStorage.getItem('genyRadar:'+(BOOT.userId||'anon')));if(c&&c.rows){RD.rows=c.rows;RD.earn=c.earn||{};RD.at=c.at||'';RD.src=c.src||''}}catch(e){}
+const rdSave=()=>{try{localStorage.setItem('genyRadar:'+(BOOT.userId||'anon'),JSON.stringify({rows:RD.rows,earn:RD.earn,at:RD.at,src:RD.src}))}catch(e){}};
 function rdPref(){if(!S.radar)S.radar={f:'d',uni:'top30',fb:'all',fk:'all',noE:false,lista:''};return S.radar}
 function rdUni(){const p=rdPref();
   if(p.uni==='mia'){const l=[...new Set(String(p.lista||'').toUpperCase().split(/[^A-Z0-9.^=-]+/).filter(Boolean))].slice(0,40);return l}
@@ -1768,7 +1773,7 @@ VIEWS.radar=function(){
    </div>
    ${RD.busy?`<div class="rd-prog" aria-live="polite"><span id="rdTxt">Leyendo ${RD.done} de ${RD.total}…</span><div class="bar"><i id="rdBar" style="width:${RD.total?RD.done/RD.total*100:0}%;background:var(--lime);transition:none"></i></div></div>`:''}
    ${RD.err?`<p class="r21alert" style="margin:14px 0 0">${esc(RD.err)}</p>`:''}
-   ${RD.at&&!RD.busy?`<p class="hint" style="margin-top:12px">Último escaneo: ${new Date(RD.at).toLocaleString('es',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}. Precios de cierre diario (FMP); ${all} de ${u.length} símbolos de este universo con datos.</p>`:''}
+   ${RD.at&&!RD.busy?`<p class="hint" style="margin-top:12px">Último escaneo: ${new Date(RD.at).toLocaleString('es',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}. Precios de cierre diario (${esc(RD.src||'Yahoo Finance')}); ${all} de ${u.length} símbolos de este universo con datos.</p>`:''}
   </div>
   ${!all?`<div class="empty">${RD.busy?'Leyendo un año de precios de cada símbolo. Tarda cerca de un minuto.':u.length?'Todavía no hay un escaneo de este universo. Toca «Escanear el mercado» y en un minuto tienes el mapa completo.':'Escribe tus símbolos arriba y toca «Escanear el mercado».'}</div>`:`
   ${mk.length?`<div class="rd-mkt"><span style="color:var(--fg);font-family:var(--display);font-weight:700">Pulso del mercado</span>${mk.map(m=>`<span><b>${m.s}</b> ${m.px.toFixed(2)} <span class="${m.chg>=0?'up':'down'}">${m.chg>=0?'+':''}${m.chg.toFixed(1)}%</span> · diario ${rdT(m.td)} semanal ${rdT(m.tw)} · VR <b>${m.vr}</b></span>`).join('')}</div>`:''}
@@ -1800,12 +1805,12 @@ async function rdScan(){
   const one=async s=>{const args={endpoint:'historical-price-eod-full',symbol:s,from_date:daysAgo(430),to_date:today()};
     try{return await mcp.callTool('FMP','chart',args)}catch(e){if(!e?.retryable||RD_MSG[e.code])throw e;await wait(e.retryAfterMs||600+Math.random()*700);return mcp.callTool('FMP','chart',args)}};
   const step=async s=>{
-    try{const m=rdCalc(s,(await one(s))?.payload);if(m)RD.rows[s]=m;else fail++}catch(e){if(RD_MSG[e?.code])stop=e.code;else fail++}
+    try{const r=await one(s);if(r)RD.src=(r.provider||r.source)==='fmp'?'FMP':'Yahoo Finance';const m=rdCalc(s,r?.payload);if(m)RD.rows[s]=m;else fail++}catch(e){if(RD_MSG[e?.code])stop=e.code;else fail++}
     RD.done++;const t=$('#rdTxt'),b=$('#rdBar');if(t)t.textContent=`Leyendo ${RD.done} de ${RD.total}…`;if(b)b.style.width=RD.done/RD.total*100+'%'};
   const work=async()=>{while(q.length&&!stop)await step(q.shift())};
   await step(q.shift());   // la primera llamada pide el permiso; las demás van de a tres
   if(!stop)await Promise.all([work(),work(),work()]);
-  if(!stop){try{const r=await mcp.callTool('FMP','calendar',{endpoint:'earnings-calendar',from_date:today(),to_date:daysAgo(-62),limit:4000});
+  if(!stop){try{const r=await mcp.callTool('FMP','calendar',{endpoint:'earnings-calendar',from_date:today(),to_date:daysAgo(-62),symbols:[...new Set([...RD_T60,...list])].slice(0,75).join(',')});
     const set=new Set([...RD_T60,...RD_ETF,...list]),e={};(Array.isArray(r?.payload)?r.payload:[]).forEach(x=>{const s=x.symbol,d=String(x.date||'').slice(0,10);if(set.has(s)&&d>=today()&&(!e[s]||d<e[s]))e[s]=d});RD.earn=e}catch(e){}}
   RD.busy=false;RD.at=new Date().toISOString();
   RD.err=stop?RD_MSG[stop]:fail>=list.length?'No pude leer ningún símbolo. Espera un minuto y vuelve a escanear.':fail?`No pude leer ${fail} símbolo${fail===1?'':'s'}; el resto está al día.`:'';
@@ -1814,7 +1819,7 @@ async function rdScan(){
 function rdAbrir(sym){
   const m=RD.rows[sym];if(!m)return;const k=rdPick(m,rdPref().f),o=opc(),st=opcStep(m.px);
   o.sym=sym;o.spot=+m.px.toFixed(2);o.iv=Math.max(5,Math.round(m.hv));o.dte=k.dte;
-  o.src=`Idea del radar con el cierre del ${rdFd(m.d)} (FMP). La volatilidad es la histórica de 20 días: ajústala a la IV que ves en tu bróker.`;
+  o.src=`Idea del radar con el cierre del ${rdFd(m.d)} (${RD.src||'Yahoo Finance'}). La volatilidad es la histórica de 20 días: ajústala a la IV que ves en tu bróker.`;
   opcSet(o,k.tpl);o.legs=opcBuild(k.tpl,o.spot,o.dte,Math.max(st,Math.round(k.em/2/st)*st));o.rng=opcAutoRng(o);
   save();go('opciones');toast(`${k.tpl} en ${sym}, lista para ajustar`);window.jrBump?.('armar')}
 document.addEventListener('click',e=>{

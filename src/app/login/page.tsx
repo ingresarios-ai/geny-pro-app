@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
@@ -27,6 +27,28 @@ function LoginFormInner() {
       : ''
   );
   const [info, setInfo] = useState('');
+  const [supportUrl, setSupportUrl] = useState('');
+  const [privacyUrl, setPrivacyUrl] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+    supabase
+      .from('portal_links')
+      .select('support_whatsapp_url, privacy_url')
+      .eq('id', 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active || !data) return;
+        const wa = String(data.support_whatsapp_url || '').trim();
+        const priv = String(data.privacy_url || '').trim();
+        if (wa.startsWith('https://')) setSupportUrl(wa);
+        if (priv.startsWith('https://')) setPrivacyUrl(priv);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handlePasswordSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -379,7 +401,33 @@ function LoginFormInner() {
         </div>
 
         <p className="hint" style={{ textAlign: 'center' }}>
-          ¿Compraste en Whop o Hotmart con otro correo? Escribe a soporte de INGRESARIOS para actualizar tu acceso en segundos.
+          ¿Compraste en Whop o Hotmart con otro correo?{' '}
+          {supportUrl ? (
+            <a
+              href={supportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--lime)', textDecoration: 'underline' }}
+            >
+              Escribe a soporte de INGRESARIOS
+            </a>
+          ) : (
+            'Escribe a soporte de INGRESARIOS'
+          )}{' '}
+          para actualizar tu acceso en segundos.
+          {privacyUrl ? (
+            <>
+              {' · '}
+              <a
+                href={privacyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--muted)', textDecoration: 'underline' }}
+              >
+                Política de privacidad
+              </a>
+            </>
+          ) : null}
         </p>
       </div>
     </div>
