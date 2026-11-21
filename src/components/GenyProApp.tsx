@@ -63,7 +63,7 @@ export function GenyProApp({
     <>
       <div className="wrap">
         <header className="top">
-          <button className="logo" data-go="inicio" aria-label="Ir al inicio">
+          <button type="button" className="logo" data-go="inicio" aria-label="Ir al inicio">
             <svg viewBox="0 0 46 40" aria-hidden="true">
               <path d="M23 2 44 38H33L23 20 13 38H2Z" fill="#8CFF2E" />
               <path d="M23 20 33 38H13Z" fill="#3E8F00" />
@@ -112,14 +112,14 @@ export function GenyProApp({
               </button>
             </div>
 
-            <button className="ibtn" id="bell" aria-label="Avisos" aria-expanded="false">
+            <button type="button" className="ibtn" id="bell" aria-label="Avisos" aria-expanded="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0" />
               </svg>
               <span className="dot" id="bellDot" hidden />
             </button>
 
-            <button className="ibtn" id="me" aria-label="Mi cuenta" aria-expanded="false">
+            <button type="button" className="ibtn" id="me" aria-label="Mi cuenta" aria-expanded="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <circle cx="12" cy="12" r="10" />
                 <circle cx="12" cy="10" r="3.5" />
@@ -158,7 +158,7 @@ export function GenyProApp({
 
         <div className="banner" id="demo" hidden>
           <span>Estás viendo datos de ejemplo para que explores cómo funciona Geny Pro.</span>
-          <button className="btn sm" data-act="clearDemo">
+          <button type="button" className="btn sm" data-act="clearDemo">
             Empezar con mis datos
           </button>
         </div>
@@ -243,7 +243,7 @@ export function GenyProApp({
         strategy="afterInteractive"
       />
       <Script
-        src="/geny-engine.js"
+        src="/geny-engine.js?v=20261121b"
         strategy="afterInteractive"
         onReady={() => {
           if (typeof window.bootGenyPro === 'function') {

@@ -1,6 +1,9 @@
 /* Geny Pro SaaS Client Engine — Powered by INGRESARIOS (Next.js + Supabase) */
 window.bootGenyPro = function bootGenyPro(BOOT) {
-  if (window.__GENY_RUNNING__) return;
+  if (window.__GENY_RUNNING__) {
+    window.__GENY_REMOUNT__?.(BOOT);
+    return;
+  }
   window.__GENY_RUNNING__ = true;
 
   const fail = (code, message, extra) => Object.assign(new Error(message || code), { code }, extra || {});
@@ -274,38 +277,50 @@ function setUiMode(m){
   uiMode=next;
   try{localStorage.setItem(UI_KEY,uiMode)}catch(e){}
   S.uiMode=uiMode;
-  if(uiMode==='classic'&&$('#genyDrawer')?.open)closeGenyDrawer?.();
+  if(uiMode==='classic'&&$('#genyDrawer')?.open)closeGenyDrawer?.(true);
   save();syncUiModeAttr();render();
   toast(uiMode==='classic'?'Vista Original activada (11 pestañas clásicas)':'Vista Nueva activada (navegación guiada y simplificada)');
 }
 function route(){const h=location.hash.slice(1);return TABS.some(t=>t[0]===h)?h:'inicio'}
-function go(v){if(location.hash.slice(1)===v)render();else location.hash=v;window.scrollTo({top:0})}
-addEventListener('hashchange',render);
+let skipNextHashRender=false;
+function go(v){
+  const target=TABS.some(t=>t[0]===v)?v:'inicio';
+  if(location.hash.slice(1)!==target){
+    skipNextHashRender=true;
+    location.hash=target;
+    setTimeout(()=>{skipNextHashRender=false},0);
+  }
+  render();
+  window.scrollTo({top:0});
+}
+addEventListener('hashchange',()=>{if(skipNextHashRender){skipNextHashRender=false;return}render()});
 
 function render(){
+  const tabsEl=$('#tabs'),viewEl=$('#view');
+  if(!tabsEl||!viewEl)return;
   const r=route();
   syncUiModeAttr();
   const guided=isGuided();
-  const mob=$('#mobTabs'),fab=$('#genyFab');
+  const mob=$('#mobTabs'),fab=$('#genyFab'),demoEl=$('#demo'),bellDotEl=$('#bellDot');
   if(guided){
     const pk=pillarOf(r);
-    $('#tabs').innerHTML=PILLARS.map(([k,l,i])=>`<button class="tab" data-go="${k}" ${k===pk?'aria-current="page"':''}>${ic(i)}<span>${l}</span>${k==='reto21'?`<span class="tab-badge">${S.reto.hechos.length}/21</span>`:''}</button>`).join('');
+    tabsEl.innerHTML=PILLARS.map(([k,l,i])=>`<button type="button" class="tab" data-go="${k}" ${k===pk?'aria-current="page"':''}>${ic(i)}<span>${l}</span>${k==='reto21'?`<span class="tab-badge">${S.reto.hechos.length}/21</span>`:''}</button>`).join('');
     if(mob){
       mob.hidden=false;
       mob.innerHTML=PILLARS.map(([k,l,i])=>`<button type="button" class="mob-tab" data-go="${k}" ${k===pk?'aria-current="page"':''}>${ic(i)}<span>${l}</span></button>`).join('');
     }
     if(fab)fab.hidden=(r==='geny');
-    $('#demo').hidden=!S.ejemplo||(r==='inicio'&&!S.onboarded);
+    if(demoEl)demoEl.hidden=!S.ejemplo||(r==='inicio'&&!S.onboarded);
     const backBtn=r==='geny'?'<div style="margin:14px 0 0"><button type="button" class="btn sm ghost" data-go="inicio">← Volver al inicio</button></div>':'';
-    $('#view').innerHTML=r==='inicio'?subnavHtml(r)+inicioGuided():backBtn+subnavHtml(r)+VIEWS[r]();
+    viewEl.innerHTML=r==='inicio'?subnavHtml(r)+inicioGuided():backBtn+subnavHtml(r)+VIEWS[r]();
   }else{
-    $('#tabs').innerHTML=TABS.map(([k,l,i])=>`<button class="tab" data-go="${k}" ${k===r?'aria-current="page"':''}>${ic(i)}${l}</button>`).join('');
+    tabsEl.innerHTML=TABS.map(([k,l,i])=>`<button type="button" class="tab" data-go="${k}" ${k===r?'aria-current="page"':''}>${ic(i)}${l}</button>`).join('');
     if(mob)mob.hidden=true;
     if(fab)fab.hidden=true;
-    $('#demo').hidden=!S.ejemplo;
-    $('#view').innerHTML=VIEWS[r]();
+    if(demoEl)demoEl.hidden=!S.ejemplo;
+    viewEl.innerHTML=VIEWS[r]();
   }
-  $('#bellDot').hidden=!avisos().length;
+  if(bellDotEl)bellDotEl.hidden=!avisos().length;
   document.querySelectorAll('#tabs [aria-current="page"], .subnav [aria-current="page"]').forEach(el=>{
     try{el.scrollIntoView({block:'nearest',inline:'nearest',container:'nearest'})}
     catch(_){el.scrollIntoView({block:'nearest',inline:'nearest'})}
@@ -453,7 +468,7 @@ function inicioGuided(){
 
     <div class="g-summary">
       <div class="panel">
-        <div class="ph"><span class="g-eyebrow">ÍNDICE DE DESEMPEÑO INTEGRAL</span><button class="btn sm ghost" data-go="progreso">Ciclo PEDEM →</button></div>
+        <div class="ph"><span class="g-eyebrow">ÍNDICE DE DESEMPEÑO INTEGRAL</span><button type="button" class="btn sm ghost" data-go="progreso">Ciclo PEDEM →</button></div>
         <div class="ringwrap"><div class="ring">${ring(s.gen,132,12)}<b>${s.gen}%</b></div><div class="areas">${areaBars(s)}</div></div>
       </div>
       <div class="panel">
@@ -478,28 +493,28 @@ inicio(){
     <p class="tagline">Tu mentora inteligente de inteligencia financiera, trading y alto rendimiento.</p>
     <div class="bot">${BOT}</div>
     <div class="pills">
-      ${[['Aprende','cap','geny'],['Mide','bars','progreso'],['Planifica','cal','metas'],['Mejora','trophy','mentalidad'],['Ejecuta','play','trading'],['Evoluciona','inf','progreso']].map(([l,i,g])=>`<button class="pill" data-go="${g}">${ic(i)}${l}</button>`).join('')}
+      ${[['Aprende','cap','geny'],['Mide','bars','progreso'],['Planifica','cal','metas'],['Mejora','trophy','mentalidad'],['Ejecuta','play','trading'],['Evoluciona','inf','progreso']].map(([l,i,g])=>`<button type="button" class="pill" data-go="${g}">${ic(i)}${l}</button>`).join('')}
     </div>
   </aside>
   <section class="center">
     <div class="hello">
       <div><h1>¡Hola, ${esc(S.nombre)}!</h1><p>Soy Geny, tu mentora de inteligencia financiera. ¿Qué quieres hacer hoy?</p></div>
-      <button class="panel glow reto" data-go="reto21" aria-label="Abrir la bitácora del Reto 21">${ic('cal','cal')}<span class="rt"><h3>Reto 21</h3><span class="muted" style="color:#C7D3DE">Día ${d} de 21</span><span class="row"><span class="bar"><i style="width:${pr}%;background:var(--lime)"></i></span><b class="num">${pr}%</b></span></span>${ic('chev','',2)}</button>
+      <button type="button" class="panel glow reto" data-go="reto21" aria-label="Abrir la bitácora del Reto 21">${ic('cal','cal')}<span class="rt"><h3>Reto 21</h3><span class="muted" style="color:#C7D3DE">Día ${d} de 21</span><span class="row"><span class="bar"><i style="width:${pr}%;background:var(--lime)"></i></span><b class="num">${pr}%</b></span></span>${ic('chev','',2)}</button>
     </div>
     <div class="actions">
-      <button class="act" style="--c:#6A4BFF" data-go="geny">${ic('chat')}Conversar con Geny</button>
-      <button class="act" style="--c:#19C93A" data-act="nuevoTrade">${ic('candles')}Registrar operación</button>
-      <button class="act" style="--c:#E0A400" data-go="dinero">${ic('wallet')}Actualizar mis finanzas</button>
-      <button class="act" style="--c:#1487E8" data-act="avanzarPlan">${ic('clip')}Avanzar en mi plan</button>
-      <button class="act" style="--c:#9B2BE0" data-go="metas">${ic('target')}Revisar mis metas</button>
+      <button type="button" class="act" style="--c:#6A4BFF" data-go="geny">${ic('chat')}Conversar con Geny</button>
+      <button type="button" class="act" style="--c:#19C93A" data-act="nuevoTrade">${ic('candles')}Registrar operación</button>
+      <button type="button" class="act" style="--c:#E0A400" data-go="dinero">${ic('wallet')}Actualizar mis finanzas</button>
+      <button type="button" class="act" style="--c:#1487E8" data-act="avanzarPlan">${ic('clip')}Avanzar en mi plan</button>
+      <button type="button" class="act" style="--c:#9B2BE0" data-go="metas">${ic('target')}Revisar mis metas</button>
     </div>
     <div class="duo">
-      <div class="panel"><div class="ph"><h2>Mi progreso general</h2><button class="chev" data-go="progreso" aria-label="Ver progreso">${ic('chev','',2)}</button></div>
+      <div class="panel"><div class="ph"><h2>Mi progreso general</h2><button type="button" class="chev" data-go="progreso" aria-label="Ver progreso">${ic('chev','',2)}</button></div>
         <div class="ringwrap"><div class="ring">${ring(s.gen)}<b>${s.gen}%</b></div><div class="areas">${areaBars(s)}</div></div></div>
-      <div class="panel"><div class="ph"><h2>Mi plan actual (PEDEM)</h2><button class="chev" data-go="progreso" aria-label="Ver plan">${ic('chev','',2)}</button></div>${pedemList()}</div>
+      <div class="panel"><div class="ph"><h2>Mi plan actual (PEDEM)</h2><button type="button" class="chev" data-go="progreso" aria-label="Ver plan">${ic('chev','',2)}</button></div>${pedemList()}</div>
     </div>
     <div class="mods">
-      ${[['dinero','Mi Dinero','Organiza, ahorra y fortalece tus finanzas','db','#00FF94'],['trading','Mi Trading','Estrategias, bitácora y métricas de desempeño','candles','#2FA8FF'],['mentalidad','Mi Mentalidad','Disciplina, enfoque y control emocional','lotus','#B04BFF'],['metas','Mis Metas','Define, planifica y da seguimiento','target','#D24BFF']].map(([g,t,p,i,c])=>`<button class="mod" style="--c:${c}" data-go="${g}">${ic(i,'ic')}${ic('chev','go',2.4)}<h3>${t}</h3><p>${p}</p></button>`).join('')}
+      ${[['dinero','Mi Dinero','Organiza, ahorra y fortalece tus finanzas','db','#00FF94'],['trading','Mi Trading','Estrategias, bitácora y métricas de desempeño','candles','#2FA8FF'],['mentalidad','Mi Mentalidad','Disciplina, enfoque y control emocional','lotus','#B04BFF'],['metas','Mis Metas','Define, planifica y da seguimiento','target','#D24BFF']].map(([g,t,p,i,c])=>`<button type="button" class="mod" style="--c:${c}" data-go="${g}">${ic(i,'ic')}${ic('chev','go',2.4)}<h3>${t}</h3><p>${p}</p></button>`).join('')}
     </div>
   </section>
   <aside class="side">
@@ -508,7 +523,7 @@ inicio(){
       <div class="steps" aria-label="Paso ${Math.min(paso,4)} de 4">${[1,2,3,4].map(n=>`${n>1?'<i></i>':''}<span class="step ${n<paso?'done':n===paso?'cur':''}">${n<paso?'✓':n}</span>`).join('')}</div>
       <p class="c">${S.diag.hecho?'Diagnóstico completo. Tu plan ya está personalizado.':'Conozcámonos mejor. Este diagnóstico me ayudará a personalizar tu plan.'}</p>
       <ul class="chklist">${DAREAS.map(([k,l,i,c])=>`<li><span style="color:${c}">${ic(i)}</span>${l}<span class="box ${S.diag.areas[k]?'on':''}" aria-label="${S.diag.areas[k]?'completo':'pendiente'}">${S.diag.areas[k]?ic('ok','',3):''}</span></li>`).join('')}</ul>
-      <button class="btn" style="width:100%" data-act="diag">${S.diag.hecho?'Repetir diagnóstico':S.diag.paso>1?'Continuar diagnóstico':'Comenzar diagnóstico'}</button>
+      <button type="button" class="btn" style="width:100%" data-act="diag">${S.diag.hecho?'Repetir diagnóstico':S.diag.paso>1?'Continuar diagnóstico':'Comenzar diagnóstico'}</button>
     </div>
     <div class="panel glow allin"><h3>${ic('up')}Todo en un solo lugar</h3><p>Educación, herramientas, seguimiento y acompañamiento con inteligencia artificial.</p></div>
   </aside></div>`;
@@ -517,15 +532,15 @@ inicio(){
 geny(){
   if(isGuided()){
     return `<div class="vhead"><div class="inline" style="gap:12px;align-items:center"><div class="g-vhead-bot">${BOT_PRO}</div><div><span class="g-eyebrow">CONSOLA IA · INGRESARIOS</span><h1>Geny AI · Co-Pilot Operativo</h1><p>Análisis sobre tu bitácora, gestión de riesgo, estructura de opciones y finanzas.</p></div></div></div>
-    <div class="chips">${['¿Qué patrón ves en mi bitácora?','¿Cómo voy con mi tasa de ahorro?','Dame mi plan PEDEM para esta semana','Registra un gasto de $45 en comida'].map(c=>`<button class="chip" data-act="chip">${c}</button>`).join('')}</div>
+    <div class="chips">${['¿Qué patrón ves en mi bitácora?','¿Cómo voy con mi tasa de ahorro?','Dame mi plan PEDEM para esta semana','Registra un gasto de $45 en comida'].map(c=>`<button type="button" class="chip" data-act="chip">${c}</button>`).join('')}</div>
     <div class="panel chat"><div class="msgs" id="msgs">${S.chat.length?S.chat.map(m=>`<div class="msg ${m.role==='user'?'me':'g'}">${esc(m.content)}</div>`).join(''):`<div class="msg g">Sesión iniciada, ${esc(S.nombre)}. Veo ${S.trades.length} operaciones en bitácora y ${S.movs.length} movimientos registrados. ¿Qué analizamos hoy?</div>`}</div>
-    <form class="compose" id="compose"><textarea id="q" placeholder="Escribe una consulta cuantitativa o pídeme registrar un movimiento/trade…" aria-label="Mensaje para Geny AI"></textarea><button class="btn" id="send">Enviar</button></form></div>
+    <form class="compose" id="compose"><textarea id="q" placeholder="Escribe una consulta cuantitativa o pídeme registrar un movimiento/trade…" aria-label="Mensaje para Geny AI"></textarea><button type="submit" class="btn" id="send">Enviar</button></form></div>
     <p class="risk">Herramienta educativa. No constituye asesoría financiera personalizada ni recomendación de compra o venta; operar implica riesgo de pérdida.</p>`;
   }
   return `<div class="vhead"><div><h1>Mi Geny</h1><p>Pregúntame sobre tus finanzas, tu bitácora o tu mentalidad. Leo tus datos para darte respuestas concretas y puedo registrar operaciones, movimientos y metas por ti.</p></div></div>
-  <div class="chips">${['¿Qué patrón ves en mi bitácora?','¿Cómo voy con mi tasa de ahorro?','Dame mi plan para esta semana','Registra un gasto de $45 en comida'].map(c=>`<button class="chip" data-act="chip">${c}</button>`).join('')}</div>
+  <div class="chips">${['¿Qué patrón ves en mi bitácora?','¿Cómo voy con mi tasa de ahorro?','Dame mi plan para esta semana','Registra un gasto de $45 en comida'].map(c=>`<button type="button" class="chip" data-act="chip">${c}</button>`).join('')}</div>
   <div class="panel chat"><div class="msgs" id="msgs">${S.chat.length?S.chat.map(m=>`<div class="msg ${m.role==='user'?'me':'g'}">${esc(m.content)}</div>`).join(''):`<div class="msg g">¡Hola, ${esc(S.nombre)}! Soy Geny. Veo ${S.trades.length} operaciones en tu bitácora y ${S.movs.length} movimientos de dinero. ¿Por dónde empezamos?</div>`}</div>
-  <form class="compose" id="compose"><textarea id="q" placeholder="Escríbele a Geny…" aria-label="Mensaje para Geny"></textarea><button class="btn" id="send">Enviar</button></form></div>
+  <form class="compose" id="compose"><textarea id="q" placeholder="Escríbele a Geny…" aria-label="Mensaje para Geny"></textarea><button type="submit" class="btn" id="send">Enviar</button></form></div>
   <p class="risk">Geny es una herramienta educativa. No da recomendaciones de inversión personalizadas y operar implica riesgo de pérdida.</p>`;
 },
 
@@ -561,7 +576,7 @@ trading(){
   const mn=Math.min(...eq),mx=Math.max(...eq),W=600,H=140,pad=10;
   const pts=eq.map((v,i)=>`${pad+i*(W-2*pad)/Math.max(1,eq.length-1)},${H-pad-(v-mn)/((mx-mn)||1)*(H-2*pad)}`).join(' ');
   const emos={},tipos={};S.trades.forEach(x=>{emos[x.emo]=emos[x.emo]||{n:0,p:0};emos[x.emo].n++;emos[x.emo].p+=pnl(x);const k=tipoLbl(x);tipos[k]=tipos[k]||{n:0,w:0,p:0};tipos[k].n++;tipos[k].p+=pnl(x);if(pnl(x)>0)tipos[k].w++});
-  return `<div class="vhead"><div><h1>Mi Trading</h1><p>Tu bitácora de operaciones. Documentar cada trade con su emoción es lo que convierte resultados en aprendizaje.</p></div><div class="inline"><button class="btn ghost" data-act="r21import">Importar Excel</button><button class="btn ghost" data-go="opciones">Simular estrategia de opciones</button><button class="btn ghost" data-go="replay">Practicar en replay</button><button class="btn" data-act="nuevoTrade">Registrar operación</button></div></div>
+  return `<div class="vhead"><div><h1>Mi Trading</h1><p>Tu bitácora de operaciones. Documentar cada trade con su emoción es lo que convierte resultados en aprendizaje.</p></div><div class="inline"><button type="button" class="btn ghost" data-act="r21import">Importar Excel</button><button type="button" class="btn ghost" data-go="opciones">Simular estrategia de opciones</button><button type="button" class="btn ghost" data-go="replay">Practicar en replay</button><button type="button" class="btn" data-act="nuevoTrade">Registrar operación</button></div></div>
   <div class="stats">
    <div class="stat"><div class="k">P&amp;L total</div><div class="v ${t.total>=0?'up':'down'}">${money(+t.total.toFixed(2))}</div></div>
    <div class="stat"><div class="k">Win rate</div><div class="v">${(t.wr*100).toFixed(0)}%</div></div>
@@ -617,12 +632,12 @@ progreso(){
   <div class="duo">
    <div class="panel"><div class="ph"><h2>Progreso general</h2></div><div class="ringwrap"><div class="ring">${ring(s.gen)}<b>${s.gen}%</b></div><div class="areas">${areaBars(s)}</div></div>
     <p class="muted" style="font-size:13px;margin:14px 0 0">Finanzas: tasa de ahorro y constancia de registro. Trading: disciplina con el plan y bitácora completa. Mentalidad: tus check-ins. Hábitos: hábitos cumplidos en 7 días.</p></div>
-   <div class="panel"><div class="ph"><h2>Plan PEDEM de la semana</h2><button class="btn sm ghost" data-act="pedemReset">Nueva semana</button></div>${pedemList()}</div>
+   <div class="panel"><div class="ph"><h2>Plan PEDEM de la semana</h2><button type="button" class="btn sm ghost" data-act="pedemReset">Nueva semana</button></div>${pedemList()}</div>
   </div>
   <div class="panel" style="margin-top:18px"><div class="ph"><h2>Reto 21</h2><span class="num muted">${S.reto.hechos.length}/21 misiones</span></div>
    <div class="days21">${Array.from({length:21},(_,i)=>`<div class="d21 ${i<S.reto.hechos.length?'on':i===S.reto.hechos.length&&!done?'today':''}" title="${esc(MISIONES[i])}">${i+1}</div>`).join('')}</div>
-   ${S.reto.hechos.length>=21?`<div class="mission"><h3>¡Reto 21 completado! 🏆</h3><p>Terminaste las 21 misiones. Ahora repite el ciclo PEDEM con metas más grandes.</p><button class="btn ghost sm" data-act="retoReset">Reiniciar reto</button></div>`:
-   `<div class="mission"><h3>Misión del día ${d}</h3><p>${esc(MISIONES[d-1])}</p>${done?'<span class="up">Misión de hoy completada. Vuelve mañana por la siguiente.</span>':'<button class="btn" data-go="reto21">Abrir el día ${d} en la bitácora</button>'}</div>`}</div>`;
+   ${S.reto.hechos.length>=21?`<div class="mission"><h3>¡Reto 21 completado! 🏆</h3><p>Terminaste las 21 misiones. Ahora repite el ciclo PEDEM con metas más grandes.</p><button type="button" class="btn ghost sm" data-act="retoReset">Reiniciar reto</button></div>`:
+   `<div class="mission"><h3>Misión del día ${d}</h3><p>${esc(MISIONES[d-1])}</p>${done?'<span class="up">Misión de hoy completada. Vuelve mañana por la siguiente.</span>':`<button type="button" class="btn" data-go="reto21">Abrir el día ${d} en la bitácora</button>`}</div>`}</div>`;
 }};
 
 /* ---------- modales ---------- */
@@ -672,7 +687,7 @@ function syncTradeForm(){
     :credito?'Estrategia de crédito: la entrada es la prima neta que recibiste y la salida lo que pagaste al cerrar (0 si expiró sin valor). Se multiplica × 100 por contrato.'
     :'Estrategia de débito: la entrada es la prima neta que pagaste y la salida lo que recibiste al cerrar (0 si expiró sin valor). Se multiplica × 100 por contrato.';
 }
-document.addEventListener('change',e=>{if(e.target.closest('#tradeForm'))syncTradeForm()});
+document.addEventListener('change',e=>{const t=e.target instanceof Element?e.target:null;if(t?.closest('#tradeForm'))syncTradeForm()});
 document.addEventListener('input',e=>{if(e.target.id==='t-activo')syncTradeForm();if(e.target.id==='t-mult')e.target.dataset.auto=''});
 const DQ=[
  {t:'Mis finanzas personales',a:['finanzas'],qs:[['registro','¿Llevas registro de tus gastos?',['Nunca','A veces','Siempre']],['ahorro','¿Qué parte de tus ingresos ahorras?',['Nada','Menos del 10 %','10 a 20 %','Más del 20 %']],['fondo','¿Tienes fondo de emergencia?',['No','1 a 3 meses','Más de 3 meses']]]},
@@ -1099,12 +1114,35 @@ const RKB={db:undefined,id:null,last:'',
  async accion(a){if(a==='alias'){S.alias=aliasNuevo();S.enRanking=true}if(a==='salir')S.enRanking=false;if(a==='entrar'){S.enRanking=true;S.alias=S.alias||aliasNuevo()}save();await RKB.publicar(true);return{alias:S.alias,enRanking:S.enRanking!==false}}};
 
 /* ---------- eventos ---------- */
+function closePop(){const p=$('#pop');if(p)p.hidden=true;$('#bell')?.setAttribute('aria-expanded','false');$('#me')?.setAttribute('aria-expanded','false')}
+function openBellPop(){
+  const p=$('#pop'),bell=$('#bell');if(!p||!bell)return;
+  if(!p.hidden&&p.dataset.k==='bell'){closePop();return}
+  p.dataset.k='bell';
+  if(isGuided()){const a=avisosRich();p.innerHTML=`<h3>Avisos</h3>${a.length?`<div class="pop-list">${a.map(x=>`<button type="button" class="bell-item" ${x.go?`data-go="${x.go}"`:`data-act="${x.act}"`}><span>${esc(x.txt)}</span><b>Ir →</b></button>`).join('')}</div>`:'<p class="muted">Todo al día. Buen trabajo.</p>'}`;}
+  else{const a=avisos();p.innerHTML=`<h3>Avisos</h3>${a.length?`<ul>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="muted">Todo al día. Buen trabajo.</p>'}`;}
+  p.hidden=false;bell.setAttribute('aria-expanded','true');$('#me')?.setAttribute('aria-expanded','false');
+}
+function openMePop(){
+  const p=$('#pop'),me=$('#me');if(!p||!me)return;
+  if(!p.hidden&&p.dataset.k==='me'){closePop();return}
+  p.dataset.k='me';
+  p.innerHTML=`<h3>Mi cuenta</h3><div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;display:grid;gap:4px"><span style="color:var(--fg);font-weight:500">${esc(BOOT.email||'')}</span><span><span class="badge active">${esc(BOOT.membershipLabel||'Membresía activa')}</span></span></div><form class="f" data-form="meName"><label>¿Cómo te llamo?<input id="nombre" value="${esc(S.nombre)}" maxlength="30"></label><button type="button" class="btn sm" data-act="saveName">Guardar nombre</button></form><div class="inline" style="margin-top:12px"><button type="button" class="btn sm ghost" data-act="loadDemo">Cargar ejemplo</button><button type="button" class="btn sm ghost" data-act="askReset">Borrar mis datos</button></div><div class="inline" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);justify-content:space-between"><a href="/actualizar-clave" class="btn sm ghost">Cambiar clave</a><button type="button" class="btn sm danger" data-act="signOut">Cerrar sesión</button></div><p class="muted" style="font-size:11.5px;margin:10px 0 0">Sincronizado en la nube con tu cuenta Geny Pro.</p>`;
+  p.hidden=false;me.setAttribute('aria-expanded','true');$('#bell')?.setAttribute('aria-expanded','false');
+}
 document.addEventListener('click',e=>{
-  const uiBtn=e.target.closest('[data-ui]');if(uiBtn){closePop();setUiMode(uiBtn.dataset.ui);return}
-  const g=e.target.closest('[data-go]');if(g){closePop();if($('#genyDrawer')?.open)closeGenyDrawer();go(g.dataset.go);return}
-  const b=e.target.closest('[data-act]');if(!b)return;
+  const t=e.target instanceof Element?e.target:null;if(!t)return;
+  if(t.closest('#bell')){openBellPop();return}
+  if(t.closest('#me')){openMePop();return}
+  if(t.closest('#genyFab')){closePop();openGenyDrawer();return}
+  if(t.closest('#genyDrawerClose')){closeGenyDrawer();return}
+  if(t.closest('#genyDrawerFull')){closeGenyDrawer(true);go('geny');return}
+  const dChip=t.closest('#dChips button');if(dChip){const dq=$('#dQ');if(dq){dq.value=dChip.textContent;sendChat(true)}return}
+  const uiBtn=t.closest('#modeSwitch [data-ui]');if(uiBtn){closePop();setUiMode(uiBtn.dataset.ui);return}
+  const g=t.closest('[data-go]');if(g){closePop();if($('#genyDrawer')?.open)closeGenyDrawer(true);go(g.dataset.go);return}
+  const b=t.closest('[data-act]');if(!b)return;
   const a=b.dataset.act;
-  if(a==='closeBg'&&e.target!==b)return;
+  if(a==='closeBg'&&t!==b)return;
   if(b.closest('.pop')&&a!=='askReset')closePop();
   const A={
    closeBg:closeModal,close:closeModal,
@@ -1117,7 +1155,7 @@ document.addEventListener('click',e=>{
    r21export(){exportarReto()},r21plantilla(){plantilla()},
    r21R(){const v=+$('#r21-R').value;if(!(v>0)){toast('Escribe un monto mayor que cero');return}r21().riesgoR=v;save();render();toast('Riesgo por operación guardado')},
    r21geny(){go('geny');setTimeout(()=>{const q=$('#q');if(q){q.value='Analiza mi Reto 21: las reglas que más rompo, mis mejores y peores días y qué debo cambiar en los próximos días.';q.focus()}},60)},
-sesion(){startSesion(b.dataset.k)},nuevoTrade:tradeModal,diag:diagModal,
+   sesion(){startSesion(b.dataset.k)},nuevoTrade:tradeModal,diag:diagModal,
    diagBack(){S.diag.paso--;save();diagModal()},
    pedem(){S.pedem[b.dataset.k]=!S.pedem[b.dataset.k];save();render()},
    pedemReset(){Object.keys(S.pedem).forEach(k=>S.pedem[k]=false);save();render();toast('Nueva semana: empieza por Planear')},
@@ -1134,7 +1172,7 @@ sesion(){startSesion(b.dataset.k)},nuevoTrade:tradeModal,diag:diagModal,
    startFresh(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking,ui=S.uiMode;S=blank();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;if(ui)S.uiMode=ui;S.onboarded=true;save();render();toast('¡Listo! Empiezas desde cero con tus propios datos')},
    keepDemo(){S.onboarded=true;save();render();toast('Explorando con el ejemplo. Arriba puedes limpiar los datos cuando quieras')},
    clearDemo(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking,ui=S.uiMode;S=blank();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;if(ui)S.uiMode=ui;S.onboarded=true;save();render();toast('Listo. Empiezas con tus propios datos')},
-   askReset(){$('#pop').innerHTML=`<h3>¿Borrar todos tus datos?</h3><p class="muted" style="font-size:13px;margin:0 0 10px">Se eliminan bitácora, movimientos, metas y check-ins. No se puede deshacer.</p><div class="inline"><button class="btn sm danger" data-act="doReset">Sí, borrar</button><button class="btn sm ghost" data-act="closePop">Cancelar</button></div>`},
+   askReset(){$('#pop').innerHTML=`<h3>¿Borrar todos tus datos?</h3><p class="muted" style="font-size:13px;margin:0 0 10px">Se eliminan bitácora, movimientos, metas y check-ins. No se puede deshacer.</p><div class="inline"><button type="button" class="btn sm danger" data-act="doReset">Sí, borrar</button><button type="button" class="btn sm ghost" data-act="closePop">Cancelar</button></div>`},
    doReset(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking,ui=S.uiMode;S=blank();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;if(ui)S.uiMode=ui;S.onboarded=true;save();closePop();render();toast('Datos borrados')},
    loadDemo(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking,ui=S.uiMode;S=seed();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;if(ui)S.uiMode=ui;save();closePop();render();toast('Datos de ejemplo cargados')},
    saveName(){S.nombre=($('#nombre').value||'Trader').trim().slice(0,30);save();closePop();render();toast('Nombre guardado')},
@@ -1149,6 +1187,7 @@ document.addEventListener('submit',e=>{
   if(f.id==='dCompose'){sendChat(true);return}
   if(f.id==='gQuickGeny'){const qEl=$('#gQuickQ'),v=(qEl?.value||'').trim();if(qEl)qEl.value='';if(!v){openGenyDrawer();return}openGenyDrawer().then(()=>{const dq=$('#dQ');if(dq){dq.value=v;sendChat(true)}});return}
   const k=f.dataset.form;
+  if(k==='meName'){S.nombre=($('#nombre')?.value||'Trader').trim().slice(0,30);save();closePop();render();toast('Nombre guardado');return}
   if(k==='mov'){S.movs.push({id:uid(),fecha:d.fecha||today(),tipo:d.tipo,cat:d.cat.trim(),monto:+d.monto,nota:d.nota});toast('Movimiento guardado')}
   if(k==='r21plan'||k==='r21rev'){
   if(k==='r21plan'){const n=r21().sel,dd=r21Dia(n);
@@ -1180,13 +1219,7 @@ document.addEventListener('submit',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePop()}
   if(e.target.id==='q'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat(false)}
   if(e.target.id==='dQ'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat(true)}});
-function closePop(){$('#pop').hidden=true;$('#bell').setAttribute('aria-expanded','false');$('#me').setAttribute('aria-expanded','false')}
-$('#bell').onclick=e=>{e.stopPropagation();const p=$('#pop');if(!p.hidden&&p.dataset.k==='bell'){closePop();return}p.dataset.k='bell';
-  if(isGuided()){const a=avisosRich();p.innerHTML=`<h3>Avisos</h3>${a.length?`<div class="pop-list">${a.map(x=>`<button type="button" class="bell-item" ${x.go?`data-go="${x.go}"`:`data-act="${x.act}"`}><span>${esc(x.txt)}</span><b>Ir →</b></button>`).join('')}</div>`:'<p class="muted">Todo al día. Buen trabajo.</p>'}`;}
-  else{const a=avisos();p.innerHTML=`<h3>Avisos</h3>${a.length?`<ul>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="muted">Todo al día. Buen trabajo.</p>'}`;}
-  p.hidden=false;$('#bell').setAttribute('aria-expanded','true')};
-$('#me').onclick=e=>{e.stopPropagation();const p=$('#pop');if(!p.hidden&&p.dataset.k==='me'){closePop();return}p.dataset.k='me';p.innerHTML=`<h3>Mi cuenta</h3><div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;display:grid;gap:4px"><span style="color:var(--fg);font-weight:500">${esc(BOOT.email||'')}</span><span><span class="badge active">${esc(BOOT.membershipLabel||'Membresía activa')}</span></span></div><form class="f" onsubmit="return false"><label>¿Cómo te llamo?<input id="nombre" value="${esc(S.nombre)}" maxlength="30"></label><button type="button" class="btn sm" data-act="saveName">Guardar nombre</button></form><div class="inline" style="margin-top:12px"><button class="btn sm ghost" data-act="loadDemo">Cargar ejemplo</button><button class="btn sm ghost" data-act="askReset">Borrar mis datos</button></div><div class="inline" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);justify-content:space-between"><a href="/actualizar-clave" class="btn sm ghost">Cambiar clave</a><button type="button" class="btn sm danger" data-act="signOut">Cerrar sesión</button></div><p class="muted" style="font-size:11.5px;margin:10px 0 0">Sincronizado en la nube con tu cuenta Geny Pro.</p>`;p.hidden=false;$('#me').setAttribute('aria-expanded','true')};
-document.addEventListener('click',e=>{if(!e.target.closest('.icons'))closePop()});
+document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target:null;if(!t||!t.closest('.icons'))closePop()});
 
 /* ---------- Geny (IA) + Drawer Deslizable ---------- */
 let sending=false;
@@ -1209,17 +1242,30 @@ function renderDrawerChat(){
   if(dm)dm.innerHTML=S.chat.length?S.chat.map(m=>`<div class="msg ${m.role==='user'?'me':'g'}">${esc(m.content)}</div>`).join(''):`<div class="msg g">Consola Geny AI lista, ${esc(S.nombre)}. Consulta sobre el módulo actual o pídeme registrar una operación, gasto o meta.</div>`;
   afterChat();
 }
-const gd=$('#genyDrawer'),gdSc=$('#genyDrawerScroller'),gdSh=$('#genyDrawerSheet'),gdFab=$('#genyFab'),gdClose=$('#genyDrawerClose'),gdFull=$('#genyDrawerFull');
-let drawerOpening=false,drawerOpenTimer=null;
-function closeGenyDrawer(){
-  drawerOpening=false;clearTimeout(drawerOpenTimer);
-  if(!gd||!gd.open||!gdSc)return;
+let gd=null,gdSc=null,gdSh=null,gdFab=null,gdObs=null,drawerOpening=false,drawerOpenTimer=null,drawerCloseTimer=null;
+function closeGenyDrawer(immediate=false){
+  drawerOpening=false;clearTimeout(drawerOpenTimer);clearTimeout(drawerCloseTimer);
+  if(!gd||!gd.open)return;
+  if(immediate||!gdSc||gdSc.scrollLeft<=2){
+    if(gdSc)gdSc.scrollTo({left:0,behavior:'instant'});
+    gd.close();
+    if(gdFab)gdFab.setAttribute('aria-expanded','false');
+    return;
+  }
   gdSc.scrollTo({left:0,behavior:'auto'});
+  drawerCloseTimer=setTimeout(()=>{
+    if(gd?.open&&!drawerOpening){
+      if(gdSc)gdSc.scrollTo({left:0,behavior:'instant'});
+      gd.close();
+      if(gdFab)gdFab.setAttribute('aria-expanded','false');
+    }
+  },450);
 }
 async function openGenyDrawer(){
+  bindDom();
   if(!gd||!gdSc||!gdSh)return go('geny');
   renderDrawerChat();
-  drawerOpening=true;clearTimeout(drawerOpenTimer);
+  drawerOpening=true;clearTimeout(drawerOpenTimer);clearTimeout(drawerCloseTimer);
   if(!gd.open)gd.showModal();
   if(!CSS.supports('scroll-initial-target','nearest')){
     gdSc.scrollTo({left:0,behavior:'instant'});
@@ -1229,33 +1275,34 @@ async function openGenyDrawer(){
   drawerOpenTimer=setTimeout(()=>{drawerOpening=false},420);
   if(gdFab)gdFab.setAttribute('aria-expanded','true');
 }
-if(gd&&gdSc&&gdSh){
-  if(!CSS.supports('animation-timeline: scroll()')){
-    gdSc.addEventListener('scroll',()=>{
-      const ratio=Math.max(0,Math.min(1,gdSc.scrollLeft/Math.max(1,gdSh.offsetWidth)));
-      gd.style.setProperty('--drawer-backdrop',String(ratio));
-    });
-  }
-  const visThresh=1/Math.max(320,window.innerWidth);
-  const gdObs=new IntersectionObserver(entries=>{
-    const entry=entries[entries.length-1];
-    if(!entry||!gd.open)return;
-    if(entry.intersectionRatio>=0.25)drawerOpening=false;
-    if(!drawerOpening&&entry.intersectionRatio<visThresh){
-      gd.close();
-      if(gdFab)gdFab.setAttribute('aria-expanded','false');
-    }else if(entry.intersectionRatio>=0.98&&gdFab){
-      gdFab.setAttribute('aria-expanded','true');
+function bindDom(){
+  const nextGd=$('#genyDrawer'),nextSc=$('#genyDrawerScroller'),nextSh=$('#genyDrawerSheet');
+  gd=nextGd;gdSc=nextSc;gdSh=nextSh;gdFab=$('#genyFab');
+  if(gd&&gdSc&&gdSh&&!gd.dataset.bound){
+    gd.dataset.bound='1';
+    if(!CSS.supports('animation-timeline: scroll()')){
+      gdSc.addEventListener('scroll',()=>{
+        const ratio=Math.max(0,Math.min(1,gdSc.scrollLeft/Math.max(1,gdSh.offsetWidth)));
+        gd.style.setProperty('--drawer-backdrop',String(ratio));
+      });
     }
-  },{root:gd,threshold:[visThresh,0.25,0.98]});
-  gdObs.observe(gdSh);
-  gd.addEventListener('click',e=>{if(!gdSh.contains(e.target))closeGenyDrawer()});
-  gd.addEventListener('cancel',e=>{if(e.cancelable){e.preventDefault();closeGenyDrawer()}});
-  gdClose?.addEventListener('click',closeGenyDrawer);
-  gdFab?.addEventListener('click',openGenyDrawer);
-  gdFull?.addEventListener('click',()=>{closeGenyDrawer();go('geny')});
-  $('#dCompose')?.addEventListener('submit',e=>{e.preventDefault();sendChat(true)});
-  $('#dChips')?.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const dq=$('#dQ');if(dq){dq.value=b.textContent;sendChat(true)}});
+    if(gdObs){try{gdObs.disconnect()}catch(_){}}
+    const visThresh=1/Math.max(320,window.innerWidth);
+    gdObs=new IntersectionObserver(entries=>{
+      const entry=entries[entries.length-1];
+      if(!entry||!gd?.open)return;
+      if(entry.intersectionRatio>=0.25)drawerOpening=false;
+      if(!drawerOpening&&entry.intersectionRatio<visThresh){
+        gd.close();
+        if(gdFab)gdFab.setAttribute('aria-expanded','false');
+      }else if(entry.intersectionRatio>=0.98&&gdFab){
+        gdFab.setAttribute('aria-expanded','true');
+      }
+    },{root:gd,threshold:[visThresh,0.25,0.98]});
+    gdObs.observe(gdSh);
+    gd.addEventListener('click',e=>{if(!gdSh.contains(e.target))closeGenyDrawer()});
+    gd.addEventListener('cancel',e=>{if(e.cancelable){e.preventDefault();closeGenyDrawer()}});
+  }
 }
 function contexto(){
   const s=scores(),f=finanzas(),t=tstats();
@@ -1608,7 +1655,8 @@ function loadCSV(file){
     if(setBars(bars,sym,'CSV subido')){R.aviso='';render();toast(`${bars.length} velas cargadas`)}else toast(R.err)};
   fr.readAsText(file)}
 document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-r]');if(!b)return;const a=b.dataset.r;
+  const t=e.target instanceof Element?e.target:null;if(!t)return;
+  const b=t.closest('[data-r]');if(!b)return;const a=b.dataset.r;
   ({play,step,buy:()=>openPos('long'),sell:()=>openPos('short'),close:()=>closePos(),
     demo(){setBars(sampleBars(),'DEMO','Datos simulados (velas de 5 min)',900);R.aviso='';render()},
     tf(){R.tf=+b.dataset.s;document.querySelectorAll('[data-r="tf"]').forEach(x=>x.setAttribute('aria-pressed',x===b));
@@ -1921,7 +1969,8 @@ async function opcLoad(){
   }catch(e){toast(e?.code==='server_not_connected'?'Los precios no están disponibles por ahora. Escribe el precio a mano':e?.message||'No pude traer el precio. Escríbelo a mano')}
 }
 document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-o]');if(!b)return;const o=opc(),i=+b.dataset.i,a=b.dataset.o,pos=!!$('#osPos'),libre=()=>{o.tpl='Personalizada'};
+  const t=e.target instanceof Element?e.target:null;if(!t)return;
+  const b=t.closest('[data-o]');if(!b)return;const o=opc(),i=+b.dataset.i,a=b.dataset.o,pos=!!$('#osPos'),libre=()=>{o.tpl='Personalizada'};
   const A={menu(){OPC_UI.menu=!OPC_UI.menu;render()},
     tpl(){opcSet(o,b.dataset.n);OPC_UI.menu=false;save();render()},
     exp(){const H=opcH(o),d=+b.dataset.d,at=o.dOff>=H;o.legs.forEach(l=>{if(l.type!=='s')l.dte=Math.max(1,l.dte+d-H)});o.dte=d;o.dOff=at?9999:Math.min(o.dOff,d);save();render()},
@@ -2123,7 +2172,8 @@ function rdAbrir(sym){
   opcSet(o,k.tpl);o.legs=opcBuild(k.tpl,o.spot,o.dte,Math.max(st,Math.round(k.em/2/st)*st));o.rng=opcAutoRng(o);
   save();go('opciones');toast(`${k.tpl} en ${sym}, lista para ajustar`);window.jrBump?.('armar')}
 document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-rd]');if(!b)return;const p=rdPref(),a=b.dataset.rd;
+  const t=e.target instanceof Element?e.target:null;if(!t)return;
+  const b=t.closest('[data-rd]');if(!b)return;const p=rdPref(),a=b.dataset.rd;
   if(a==='scan')rdScan();
   else if(a==='abrir')rdAbrir(b.dataset.s);
   else if(a==='geny'){const L=rdLista().slice(0,5);if(!L.length)return;const dn={a:'alcista',b:'bajista',n:'lateral'};
@@ -2141,5 +2191,11 @@ document.addEventListener('change',e=>{
       setTimeout(flush, 500);
     }
   });
+  window.__GENY_REMOUNT__ = function remountGenyPro(nextBoot) {
+    if (nextBoot && typeof nextBoot === 'object') Object.assign(BOOT, nextBoot);
+    bindDom();
+    render();
+  };
+  bindDom();
   render();
 };
