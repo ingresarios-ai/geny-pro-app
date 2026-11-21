@@ -243,7 +243,7 @@ export function GenyProApp({
         strategy="afterInteractive"
       />
       <Script
-        src="/geny-engine.js?v=20261121b"
+        src="/geny-engine.js?v=20261121c"
         strategy="afterInteractive"
         onReady={() => {
           if (typeof window.bootGenyPro === 'function') {

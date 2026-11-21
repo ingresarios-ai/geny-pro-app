@@ -239,33 +239,33 @@ function avisosRich(){
 /* ---------- navegación ---------- */
 const TABS=[['inicio','Inicio','home'],['geny','Mi Geny','chat'],['dinero','Mi Dinero','wallet'],['trading','Mi Trading','candles'],['opciones','Estrategias','payoff'],['radar','Radar','radar'],['reto21','Reto 21','cal'],['replay','Replay','play'],['metas','Mis Metas','target'],['mentalidad','Mi Mentalidad','lotus'],['progreso','Mi Progreso','bars']];
 const PILLARS=[
-  ['inicio','Inicio','home',['inicio','progreso']],
-  ['reto21','Reto 21','cal',['reto21']],
-  ['trading','Trading','candles',['trading','radar','opciones','replay']],
-  ['dinero','Finanzas','wallet',['dinero','metas']],
-  ['mentalidad','Mentalidad','lotus',['mentalidad']]
+  ['inicio','Inicio','home',['inicio','progreso'],'#84EE2E'],
+  ['reto21','Reto 21','cal',['reto21'],'#F7B731'],
+  ['trading','Trading','candles',['trading','radar','opciones','replay'],'#2B9AFF'],
+  ['dinero','Finanzas','wallet',['dinero','metas'],'#10E88A'],
+  ['mentalidad','Mentalidad','lotus',['mentalidad'],'#19D3F3']
 ];
 const SUBNAVS={
   inicio:[
-    ['inicio','Mi guía de hoy','Por dónde empezar'],
-    ['progreso','Mi progreso y PEDEM','Métricas y ciclo semanal']
+    ['inicio','Mi guía de hoy','Ruta paso a paso','home'],
+    ['progreso','Progreso y PEDEM','Métricas y ciclo semanal','bars']
   ],
   trading:[
-    ['trading','Bitácora','Tus operaciones y métricas'],
-    ['radar','Radar','Escanea oportunidades'],
-    ['opciones','Estrategias','Simulador de opciones'],
-    ['replay','Market Replay','Practica vela por vela']
+    ['trading','Bitácora','Operaciones y métricas','candles'],
+    ['radar','Radar','Escáner de oportunidades','radar'],
+    ['opciones','Estrategias','Simulador de opciones','payoff'],
+    ['replay','Market Replay','Práctica vela por vela','play']
   ],
   dinero:[
-    ['dinero','Mi Dinero','Ingresos, gastos y ahorro'],
-    ['metas','Mis Metas','Objetivos con fecha']
+    ['dinero','Mi Dinero','Ingresos, gastos y ahorro','wallet'],
+    ['metas','Mis Metas','Objetivos con fecha','target']
   ]
 };
 const pillarOf=r=>PILLARS.find(([,,,rs])=>rs.includes(r))?.[0]||null;
 function subnavHtml(r){
   const pk=pillarOf(r),list=pk?SUBNAVS[pk]:null;
   if(!list)return '';
-  return `<nav class="subnav" aria-label="Secciones del módulo">${list.map(([k,l,d])=>`<button type="button" data-go="${k}" ${k===r?'aria-current="page"':''}><span>${l}</span><small>${d}</small></button>`).join('')}</nav>`;
+  return `<nav class="subnav" aria-label="Secciones del módulo">${list.map(([k,l,d,ico])=>`<button type="button" data-go="${k}" ${k===r?'aria-current="page"':''}><span class="subnav-ic">${ic(ico||'bars')}</span><span class="subnav-txt"><span>${l}</span><small>${d}</small></span></button>`).join('')}</nav>`;
 }
 function syncUiModeAttr(){
   document.documentElement.dataset.ui=uiMode;
@@ -304,10 +304,10 @@ function render(){
   const mob=$('#mobTabs'),fab=$('#genyFab'),demoEl=$('#demo'),bellDotEl=$('#bellDot');
   if(guided){
     const pk=pillarOf(r);
-    tabsEl.innerHTML=PILLARS.map(([k,l,i])=>`<button type="button" class="tab" data-go="${k}" ${k===pk?'aria-current="page"':''}>${ic(i)}<span>${l}</span>${k==='reto21'?`<span class="tab-badge">${S.reto.hechos.length}/21</span>`:''}</button>`).join('');
+    tabsEl.innerHTML=PILLARS.map(([k,l,i,,c])=>`<button type="button" class="tab" style="--tc:${c}" data-go="${k}" ${k===pk?'aria-current="page"':''}><span class="g-tab-ic">${ic(i)}</span><span>${l}</span>${k==='reto21'?`<span class="tab-badge">${S.reto.hechos.length}/21</span>`:''}</button>`).join('');
     if(mob){
       mob.hidden=false;
-      mob.innerHTML=PILLARS.map(([k,l,i])=>`<button type="button" class="mob-tab" data-go="${k}" ${k===pk?'aria-current="page"':''}>${ic(i)}<span>${l}</span></button>`).join('');
+      mob.innerHTML=PILLARS.map(([k,l,i,,c])=>`<button type="button" class="mob-tab" style="--tc:${c}" data-go="${k}" ${k===pk?'aria-current="page"':''}>${ic(i)}<span>${l}</span></button>`).join('');
     }
     if(fab)fab.hidden=(r==='geny');
     if(demoEl)demoEl.hidden=!S.ejemplo||(r==='inicio'&&!S.onboarded);
@@ -344,24 +344,66 @@ const BOT=`<svg viewBox="0 0 300 320" aria-label="Geny, tu mentora" role="img">
 <path d="M232 230l40-46" stroke="#8CFF2E" stroke-width="5" stroke-linecap="round"/><path d="M258 182h16v16" stroke="#8CFF2E" stroke-width="5" fill="none" stroke-linecap="round"/>
 </svg>`;
 
-const BOT_PRO=`<svg viewBox="0 0 120 120" aria-label="Geny AI" role="img">
+const BOT_PRO=`<svg viewBox="0 0 220 220" aria-label="Geny AI" role="img">
 <defs>
-  <linearGradient id="gpBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#141D26"/><stop offset="100%" stop-color="#080C11"/></linearGradient>
-  <linearGradient id="gpShell" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#243140"/><stop offset="55%" stop-color="#131B24"/><stop offset="100%" stop-color="#0B1017"/></linearGradient>
-  <linearGradient id="gpVisor" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#05080C"/><stop offset="50%" stop-color="#0A1318"/><stop offset="100%" stop-color="#05080C"/></linearGradient>
+  <radialGradient id="gpAura" cx="50%" cy="42%" r="52%">
+    <stop offset="0%" stop-color="#19D3F3" stop-opacity=".22"/>
+    <stop offset="55%" stop-color="#84EE2E" stop-opacity=".08"/>
+    <stop offset="100%" stop-color="#060A10" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="gpMetal" x1="15%" y1="5%" x2="85%" y2="95%">
+    <stop offset="0%" stop-color="#EEF5FC"/>
+    <stop offset="32%" stop-color="#B9C8D9"/>
+    <stop offset="72%" stop-color="#5E738B"/>
+    <stop offset="100%" stop-color="#273647"/>
+  </linearGradient>
+  <linearGradient id="gpMetalDk" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#41556B"/>
+    <stop offset="100%" stop-color="#16212E"/>
+  </linearGradient>
+  <linearGradient id="gpTorso" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#35485E"/>
+    <stop offset="55%" stop-color="#182330"/>
+    <stop offset="100%" stop-color="#0B1119"/>
+  </linearGradient>
+  <linearGradient id="gpVisor" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#08131E"/>
+    <stop offset="60%" stop-color="#03070B"/>
+    <stop offset="100%" stop-color="#0A1926"/>
+  </linearGradient>
+  <linearGradient id="gpGlare" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".22"/>
+    <stop offset="45%" stop-color="#FFFFFF" stop-opacity=".03"/>
+    <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+  </linearGradient>
 </defs>
-<rect x="4" y="4" width="112" height="112" rx="22" fill="url(#gpBg)" stroke="#243242" stroke-width="1.2"/>
-<path d="M18 14h10M92 14h10M18 106h10M92 106h10" stroke="#33465A" stroke-width="1.2" stroke-linecap="round"/>
-<path d="M40 24h40l14 16v30l-12 16H38L26 70V40z" fill="url(#gpShell)" stroke="#384B61" stroke-width="1.2" stroke-linejoin="round"/>
-<path d="M44 24v8h32v-8" fill="none" stroke="#2C3D50" stroke-width="1"/>
-<rect x="31" y="44" width="58" height="18" rx="4" fill="url(#gpVisor)" stroke="#7CE828" stroke-opacity=".42" stroke-width="1"/>
-<path class="gp-wave" d="M36 53h11l3.5-5 4.5 10 4-7 3.5 4 3-2H84" fill="none" stroke="#7CE828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="36" cy="53" r="1.6" fill="#7CE828"/><circle cx="84" cy="53" r="1.6" fill="#38BDF8"/>
-<path d="M36 86l8 14h32l8-14" fill="#0E151D" stroke="#28384A" stroke-width="1.1"/>
-<path d="M60 89l6.5 11h-3.6L60 95l-2.9 5h-3.6z" fill="#7CE828"/><path d="M60 95l2.9 5h-5.8z" fill="#3E8F00"/>
+<circle cx="110" cy="108" r="96" fill="url(#gpAura)"/>
+<path d="M52 204 C54 176 74 164 110 164 C146 164 166 176 168 204 Z" fill="url(#gpTorso)" stroke="#4C647E" stroke-width="1.8"/>
+<path d="M84 166 L94 182 H126 L136 166" fill="#0F1823" stroke="#6E849C" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M110 175 L122 197 H115.5 L110 186.5 L104.5 197 H98 Z" fill="#84EE2E"/>
+<path d="M110 186.5 L115.5 197 H104.5 Z" fill="#3E8F00"/>
+<path d="M90 144 H130 L124 168 H96 Z" fill="url(#gpMetalDk)" stroke="#2E3F53" stroke-width="1.5"/>
+<rect x="34" y="76" width="14" height="44" rx="7" fill="url(#gpMetal)" stroke="#445970" stroke-width="1.5"/>
+<rect x="39" y="84" width="3.5" height="28" rx="1.75" fill="#19D3F3"/>
+<rect x="172" y="76" width="14" height="44" rx="7" fill="url(#gpMetal)" stroke="#445970" stroke-width="1.5"/>
+<rect x="177.5" y="84" width="3.5" height="28" rx="1.75" fill="#19D3F3"/>
+<path d="M68 30 H152 C164 30 173 39 173 51 V122 C173 137 161 149 145 149 H75 C59 149 47 137 47 122 V51 C47 39 56 30 68 30 Z" fill="url(#gpMetal)" stroke="#627890" stroke-width="1.8"/>
+<path d="M80 30 L85 45 H135 L140 30" fill="url(#gpMetalDk)" stroke="#8FA4BA" stroke-width="1.4" stroke-linejoin="round"/>
+<rect x="96" y="35.5" width="28" height="3.5" rx="1.75" fill="#84EE2E"/>
+<rect x="59" y="64" width="102" height="48" rx="16" fill="url(#gpVisor)" stroke="#19D3F3" stroke-opacity=".62" stroke-width="2"/>
+<path d="M75 66 H145 C154 66 159 71 159 79 V85 C132 77 92 78 61 88 V79 C61 71 66 66 75 66 Z" fill="url(#gpGlare)"/>
+<circle cx="88" cy="88" r="10.5" fill="none" stroke="#19D3F3" stroke-opacity=".35" stroke-width="2"/>
+<rect x="79" y="84" width="18" height="8" rx="4" fill="#19D3F3"/>
+<rect x="83" y="85.8" width="10" height="4.4" rx="2.2" fill="#DDF9FF"/>
+<circle cx="132" cy="88" r="10.5" fill="none" stroke="#19D3F3" stroke-opacity=".35" stroke-width="2"/>
+<rect x="123" y="84" width="18" height="8" rx="4" fill="#19D3F3"/>
+<rect x="127" y="85.8" width="10" height="4.4" rx="2.2" fill="#DDF9FF"/>
+<path class="gp-wave" d="M67 103 H94 L98.5 97 L103 107 L107.5 99 L111 104 L115 101 H153" fill="none" stroke="#84EE2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M82 128 H138" stroke="#4D637A" stroke-width="2.2" stroke-linecap="round"/>
+<circle cx="110" cy="128" r="3" fill="#84EE2E"/>
 </svg>`;
 
-function ring(p,size=150,sw=16){const r=(size-sw)/2,c=2*Math.PI*r,pro=isGuided(),id=pro?'rgPro':'rg';return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="#1B2631" stroke-width="${sw}" fill="none"/><circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="url(#${id})" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-dasharray="${c*p/100} ${c}"/><defs><linearGradient id="${id}"><stop offset="0" stop-color="${pro?'#10B981':'#C8FF2E'}"/><stop offset="1" stop-color="${pro?'#7CE828':'#3FD800'}"/></linearGradient></defs></svg>`}
+function ring(p,size=150,sw=16){const r=(size-sw)/2,c=2*Math.PI*r,pro=isGuided(),id=pro?'rgPro':'rg';return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="#1B2631" stroke-width="${sw}" fill="none"/><circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="url(#${id})" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-dasharray="${c*p/100} ${c}"/><defs><linearGradient id="${id}"><stop offset="0" stop-color="${pro?'#10E88A':'#C8FF2E'}"/><stop offset="1" stop-color="${pro?'#84EE2E':'#3FD800'}"/></linearGradient></defs></svg>`}
 const AREAS=[['fin','Finanzas','bars','var(--profit)'],['tra','Trading','candles','var(--violet)'],['men','Mentalidad','lotus','var(--cyan)'],['hab','Hábitos','bolt','var(--amber)']];
 const areaBars=s=>AREAS.map(([k,l,i,c])=>`<div class="area"><div class="lbl"><span style="color:${c}">${ic(i)}<span style="color:var(--fg)">${l}</span></span><span class="num">${s[k]}%</span></div><div class="bar"><i style="width:${s[k]}%;background:${c}"></i></div></div>`).join('');
 const PEDEM=[['planear','Planear','Definir mi plan de la semana'],['ejecutar','Ejecutar','Operar según mi estrategia'],['documentar','Documentar','Registrar mis operaciones'],['evaluar','Evaluar','Analizar mis resultados'],['mejorar','Mejorar','Ajustar y optimizar']];
@@ -371,16 +413,20 @@ const DAREAS=[['finanzas','Mis finanzas personales','wallet','var(--amber)'],['i
 function inicioGuided(){
   const s=scores(),d=retoDia(),f=finanzas(),t=tstats(),hoy=today();
   const tradesHoy=S.trades.filter(x=>x.fecha===hoy).length,movsHoy=S.movs.filter(x=>x.fecha===hoy).length;
+  const retoPct=Math.round(S.reto.hechos.length/21*100);
   const demoBar=(S.ejemplo&&!S.onboarded)?`
     <section class="panel g-demo-bar" aria-label="Modo demostración">
-      <div>
-        <span class="g-eyebrow">ENTORNO DE DEMOSTRACIÓN</span>
-        <strong>Estás visualizando registros simulados para evaluar la terminal.</strong>
-        <span class="muted" style="font-size:13px">Inicializa tu cuenta en limpio antes de registrar operaciones o capital real.</span>
+      <div class="g-demo-left">
+        <span class="g-demo-ic">${ic('bolt')}</span>
+        <div>
+          <span class="g-eyebrow">MODO DEMOSTRACIÓN ACTIVO</span>
+          <strong>Estás explorando la plataforma con datos simulados de ejemplo.</strong>
+          <span class="muted" style="font-size:13px">Limpia los datos cuando quieras para empezar con tu propia bitácora y finanzas reales.</span>
+        </div>
       </div>
       <div class="inline">
-        <button type="button" class="btn sm" data-act="startFresh">Inicializar cuenta en cero</button>
-        <button type="button" class="btn sm ghost" data-act="keepDemo">Mantener vista demo</button>
+        <button type="button" class="btn sm" data-act="startFresh">Empezar con mis datos</button>
+        <button type="button" class="btn sm ghost" data-act="keepDemo">Seguir viendo ejemplo</button>
       </div>
     </section>`:'';
 
@@ -391,35 +437,36 @@ function inicioGuided(){
     const d2=!S.ejemplo&&(S.movs.length>0||S.trades.length>0);
     const d3=!S.ejemplo&&S.reto.hechos.length>0;
     roadDone=(d1?1:0)+(d2?1:0)+(d3?1:0);
-    roadTitle='PROTOCOLO DE CONFIGURACIÓN';
+    roadTitle='Empieza aquí · Configura tu cuenta en 3 pasos';
     steps=[
-      {done:d1,tag:'01 · CALIBRACIÓN',t:'Perfil de riesgo y metas',p:d1?'Parámetros calibrados. Puedes recalibrar en cualquier momento.':'Define experiencia, reglas base y objetivo financiero medible (1 min).',btn:`<button type="button" class="btn sm ${d1?'ghost':''}" data-act="diag">${d1?'Recalibrar perfil':'Calibrar perfil'}</button>`},
-      {done:d2,tag:'02 · LÍNEA BASE',t:'Flujo de capital o bitácora',p:d2?'Registros base detectados en cuenta.':'Registra tu capital operativo en Finanzas o documenta tu primera ejecución.',btn:`<div class="inline"><button type="button" class="btn sm ${d1&&!d2?'':'ghost'}" data-go="dinero">Finanzas</button><button type="button" class="btn sm ghost" data-act="nuevoTrade">+ Operación</button></div>`},
-      {done:d3,tag:`03 · CONSISTENCIA · DÍA ${d}/21`,t:`Sesión ${d} del Reto 21`,p:esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${d1&&d2&&!d3?'':'ghost'}" data-go="reto21">Abrir Reto 21</button>`}
+      {done:d1,ico:'clip',col:'#19D3F3',tag:'PASO 1 · DIAGNÓSTICO',t:'Calibra tu perfil y meta',p:d1?'Perfil calibrado. Puedes repetir tu diagnóstico cuando quieras.':'Responde 4 bloques breves (1 min) para adaptar tu plan y metas.',btn:`<button type="button" class="btn sm ${d1?'ghost':''}" data-act="diag">${ic('clip')}${d1?'Repetir diagnóstico':'Hacer diagnóstico'}</button>`},
+      {done:d2,ico:'candles',col:'#2B9AFF',tag:'PASO 2 · PRIMER REGISTRO',t:'Carga finanzas u operación',p:d2?'Ya tienes registros reales en tu cuenta.':'Registra tu capital en Mi Dinero o documenta tu primer trade en bitácora.',btn:`<div class="inline"><button type="button" class="btn sm ${d1&&!d2?'':'ghost'}" data-go="dinero">${ic('wallet')}Finanzas</button><button type="button" class="btn sm ghost" data-act="nuevoTrade">${ic('candles')}+ Operación</button></div>`},
+      {done:d3,ico:'cal',col:'#F7B731',tag:`PASO 3 · RETO 21 · DÍA ${d}/21`,t:`Misión de hoy (Día ${d})`,p:esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${d1&&d2&&!d3?'':'ghost'}" data-go="reto21">${ic('cal')}Abrir Reto 21</button>`}
     ];
   }else{
     const c1=!!S.checks[hoy],c2=tradesHoy>0||movsHoy>0,c3=S.reto.hechos.includes(hoy);
     roadDone=(c1?1:0)+(c2?1:0)+(c3?1:0);
-    roadTitle='PROTOCOLO DE SESIÓN DIARIA';
+    roadTitle='Tu ruta recomendada para hoy';
     steps=[
-      {done:c1,tag:'01 · PRE-MERCADO',t:'Estado cognitivo y reglas',p:c1?`Check-in validado hoy (control ${S.checks[hoy]?.control||'–'}/5).`:'Evalúa ánimo, energía y control emocional antes de abrir gráficos.',btn:`<button type="button" class="btn sm ${c1?'ghost':''}" data-go="mentalidad">${c1?'Ver registro':'Hacer check-in'}</button>`},
-      {done:c2,tag:'02 · EJECUCIÓN',t:'Bitácora y flujo diario',p:c2?`${tradesHoy} operaci${tradesHoy===1?'ón':'ones'} y ${movsHoy} movimiento(s) hoy.`:'Documenta entradas, salidas, múltiplo R y apego al plan de trading.',btn:`<div class="inline"><button type="button" class="btn sm ${c1&&!c2?'':'ghost'}" data-act="nuevoTrade">+ Operación</button><button type="button" class="btn sm ghost" data-go="dinero">+ Finanzas</button></div>`},
-      {done:c3,tag:`03 · CIERRE · DÍA ${d}/21`,t:'Revisión post-mercado',p:c3?'Sesión de hoy auditada y cerrada.':esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${c1&&c2&&!c3?'':'ghost'}" data-go="reto21">${c3?'Ver bitácora':'Cerrar día '+d}</button>`}
+      {done:c1,ico:'lotus',col:'#19D3F3',tag:'PASO 1 · PRE-MERCADO',t:'Check-in de mentalidad',p:c1?`Check-in de hoy listo (control emocional ${S.checks[hoy]?.control||'–'}/5).`:'Mide tu ánimo, energía y control en 1 minuto antes de operar.',btn:`<button type="button" class="btn sm ${c1?'ghost':''}" data-go="mentalidad">${ic('lotus')}${c1?'Ver check-in':'Hacer check-in'}</button>`},
+      {done:c2,ico:'candles',col:'#2B9AFF',tag:'PASO 2 · EJECUCIÓN',t:'Bitácora y flujo diario',p:c2?`Hoy llevas ${tradesHoy} operaci${tradesHoy===1?'ón':'ones'} y ${movsHoy} movimiento(s).`:'Documenta tus trades con emoción o registra tus movimientos del día.',btn:`<div class="inline"><button type="button" class="btn sm ${c1&&!c2?'':'ghost'}" data-act="nuevoTrade">${ic('candles')}+ Operación</button><button type="button" class="btn sm ghost" data-go="dinero">${ic('wallet')}+ Finanzas</button></div>`},
+      {done:c3,ico:'cal',col:'#F7B731',tag:`PASO 3 · CIERRE · DÍA ${d}/21`,t:`Cierre del Reto 21`,p:c3?'Sesión de hoy auditada y cerrada.':esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${c1&&c2&&!c3?'':'ghost'}" data-go="reto21">${ic('cal')}${c3?'Ver bitácora':'Cerrar día '+d}</button>`}
     ];
   }
   const curIdx=steps.findIndex(x=>!x.done);
   const brief=!S.diag.hecho
-    ?'Perfil técnico pendiente de calibración. Completa el diagnóstico inicial para parametrizar tu gestión de riesgo y objetivos.'
+    ?'Completa tu diagnóstico inicial de 1 minuto para personalizar tu ruta de trading, hábitos y meta principal.'
     :t.n>0
-      ?`Bitácora activa: ${t.n} operaciones con ${(t.plan*100).toFixed(0)}% de apego al plan y expectativa de ${money(+t.exp.toFixed(2))} por trade. ${S.checks[hoy]?'Check-in pre-mercado validado hoy.':'Pendiente validar check-in pre-mercado de hoy.'}`
-      :'Cuenta inicializada en limpio. Registra tu línea base en Finanzas o documenta tu primera ejecución en Bitácora.';
+      ?`Llevas ${t.n} operaciones registradas con ${Math.round(t.plan*100)}% de apego al plan y esperanza de ${money(+t.exp.toFixed(2))} por trade. ${S.checks[hoy]?'Tu check-in pre-mercado de hoy ya está listo.':'Te falta tu check-in de mentalidad de hoy.'}`
+      :'Tu cuenta está limpia y lista. Registra tu capital base en Finanzas o documenta tu primera operación para ver tus métricas.';
 
   return `<div class="g-home">
     ${demoBar}
     <div class="g-topbar">
       <div>
-        <span class="g-eyebrow">TERMINAL OPERATIVA · ${hoy}${S.ejemplo?' · DEMO':''}</span>
-        <h1>Panel de ${esc(S.nombre)}</h1>
+        <span class="g-eyebrow">CENTRO DE MANDO · ${hoy}${S.ejemplo?' · MODO EJEMPLO':''}</span>
+        <h1>¡Hola, ${esc(S.nombre)}!</h1>
+        <p class="g-sub">Sigue tu ruta diaria paso a paso o entra directo a tus herramientas de trading y finanzas.</p>
       </div>
       <div class="inline">
         <button type="button" class="btn sm ghost" data-go="dinero">${ic('wallet')}Registrar flujo</button>
@@ -428,36 +475,58 @@ function inicioGuided(){
     </div>
 
     <div class="g-ribbon">
-      <div class="g-kpi"><span class="g-eyebrow">P&amp;L NETO BITÁCORA</span><b class="num ${t.total>=0?'up':'down'}">${money(+t.total.toFixed(2))}</b><small class="num">${t.n} ops · WR ${(t.wr*100).toFixed(0)}%</small></div>
-      <div class="g-kpi"><span class="g-eyebrow">DISCIPLINA &amp; FACTOR</span><b class="num">${(t.plan*100).toFixed(0)}%</b><small class="num">PF ${t.pf===Infinity?'∞':t.pf.toFixed(2)} · Exp ${money(+t.exp.toFixed(2))}</small></div>
-      <div class="g-kpi"><span class="g-eyebrow">LIQUIDEZ DISPONIBLE</span><b class="num ${f.bal<0?'down':'up'}">${money(Math.round(f.bal))}</b><small class="num">Tasa ahorro ${(f.tasa*100).toFixed(1)}%</small></div>
-      <div class="g-kpi"><span class="g-eyebrow">PROTOCOLO RETO 21</span><b class="num">Día ${d}/21</b><small class="num">${S.reto.hechos.length} sesiones cerradas</small></div>
+      <button type="button" class="g-kpi" style="--kc:var(--blue)" data-go="trading">
+        <div class="g-kpi-head"><span class="g-kpi-ic">${ic('candles')}</span><span class="g-eyebrow">P&amp;L EN BITÁCORA</span><span class="g-kpi-go" aria-hidden="true">→</span></div>
+        <b class="num ${t.total>=0?'up':'down'}">${money(+t.total.toFixed(2))}</b>
+        <small class="num">${t.n} ops · ${Math.round(t.wr*100)}% acierto</small>
+      </button>
+      <button type="button" class="g-kpi" style="--kc:var(--violet)" data-go="trading">
+        <div class="g-kpi-head"><span class="g-kpi-ic">${ic('clip')}</span><span class="g-eyebrow">DISCIPLINA PLAN</span><span class="g-kpi-go" aria-hidden="true">→</span></div>
+        <b class="num">${(t.plan*100).toFixed(0)}%</b>
+        <small class="num">PF ${t.pf===Infinity?'∞':t.pf.toFixed(2)} · Esp. ${money(+t.exp.toFixed(2))}</small>
+      </button>
+      <button type="button" class="g-kpi" style="--kc:var(--profit)" data-go="dinero">
+        <div class="g-kpi-head"><span class="g-kpi-ic">${ic('wallet')}</span><span class="g-eyebrow">LIQUIDEZ DISPONIBLE</span><span class="g-kpi-go" aria-hidden="true">→</span></div>
+        <b class="num ${f.bal<0?'down':'up'}">${money(Math.round(f.bal))}</b>
+        <small class="num">Tasa ahorro ${(f.tasa*100).toFixed(1)}%</small>
+      </button>
+      <button type="button" class="g-kpi" style="--kc:var(--amber)" data-go="reto21">
+        <div class="g-kpi-head"><span class="g-kpi-ic">${ic('cal')}</span><span class="g-eyebrow">RETO 21 DÍAS</span><span class="g-kpi-go" aria-hidden="true">→</span></div>
+        <b class="num">Día ${d} / 21</b>
+        <small class="num">${S.reto.hechos.length} de 21 cerrados (${retoPct}%)</small>
+        <div class="bar g-kpi-bar"><i style="width:${retoPct}%;background:var(--amber)"></i></div>
+      </button>
     </div>
 
     <section class="panel g-copilot" aria-label="Geny AI Co-Pilot">
       <div class="g-copilot-avatar">${BOT_PRO}</div>
       <div class="g-copilot-body">
         <div class="g-copilot-head">
-          <span class="g-eyebrow"><i class="g-led"></i>GENY AI · CO-PILOT CUANTITATIVO</span>
-          <button type="button" class="btn sm ghost" data-act="openGeny">Abrir consola IA</button>
+          <span class="g-eyebrow"><i class="g-led"></i>GENY AI · MENTORA &amp; CO-PILOT</span>
+          <button type="button" class="btn sm ghost" data-act="openGeny">${ic('chat')}Abrir consola IA</button>
         </div>
         <p class="g-copilot-brief">${esc(brief)}</p>
         <form class="g-copilot-form" id="gQuickGeny">
-          <input id="gQuickQ" type="text" placeholder="Consulta a Geny AI sobre riesgo, métricas, opciones o registra una operación…" aria-label="Consulta rápida para Geny AI">
-          <button type="submit" class="btn sm">Analizar</button>
+          <input id="gQuickQ" type="text" placeholder="Pregúntale a Geny sobre tu bitácora, opciones, ahorro o pídele registrar algo…" aria-label="Consulta rápida para Geny AI">
+          <button type="submit" class="btn sm">Consultar IA</button>
         </form>
+        <div class="g-copilot-chips">
+          <button type="button" class="g-qchip" data-quick-geny="¿Qué patrón ves en mi bitácora?">¿Qué patrón ves en mi bitácora?</button>
+          <button type="button" class="g-qchip" data-quick-geny="Arma mi plan PEDEM de la semana según mis métricas">Plan PEDEM semanal</button>
+          <button type="button" class="g-qchip" data-quick-geny="¿Cómo va mi tasa de ahorro y dónde puedo mejorar?">Analizar tasa de ahorro</button>
+        </div>
       </div>
     </section>
 
     <section class="panel glow">
       <div class="g-roadmap-head">
-        <span class="g-eyebrow">${roadTitle}</span>
-        <span class="tag up num">${roadDone}/3 completados</span>
+        <div class="g-roadmap-title">${ic('target')}<h2>${roadTitle}</h2></div>
+        <span class="tag up num">${roadDone} de 3 completados</span>
       </div>
       <div class="g-steps">
-        ${steps.map((st,i)=>`<div class="g-step ${st.done?'done':i===curIdx?'cur':''}">
+        ${steps.map((st,i)=>`<div class="g-step ${st.done?'done':i===curIdx?'cur':''}" style="--sc:${st.col}">
           <div>
-            <div class="g-step-top"><span class="g-step-num">${st.done?'✓':'0'+(i+1)}</span><span class="g-eyebrow">${st.tag}</span></div>
+            <div class="g-step-top"><span class="g-step-ic">${ic(st.ico)}</span><span class="g-step-num">${st.done?'✓ Completado':'Paso '+(i+1)}</span><span class="g-eyebrow">${st.tag}</span></div>
             <h3>${st.t}</h3>
             <p>${st.p}</p>
           </div>
@@ -468,16 +537,16 @@ function inicioGuided(){
 
     <div class="g-summary">
       <div class="panel">
-        <div class="ph"><span class="g-eyebrow">ÍNDICE DE DESEMPEÑO INTEGRAL</span><button type="button" class="btn sm ghost" data-go="progreso">Ciclo PEDEM →</button></div>
-        <div class="ringwrap"><div class="ring">${ring(s.gen,132,12)}<b>${s.gen}%</b></div><div class="areas">${areaBars(s)}</div></div>
+        <div class="ph"><h2>Mi Progreso Integral</h2><button type="button" class="btn sm ghost" data-go="progreso">Ciclo PEDEM →</button></div>
+        <div class="ringwrap"><div class="ring">${ring(s.gen,138,13)}<b>${s.gen}%</b></div><div class="areas">${areaBars(s)}</div></div>
       </div>
       <div class="panel">
-        <div class="ph"><span class="g-eyebrow">MÓDULOS DE ANÁLISIS Y EJECUCIÓN</span></div>
+        <div class="ph"><h2>Herramientas de Trading y Capital</h2></div>
         <div class="g-tools">
-          <button type="button" class="g-mod-btn" data-go="radar">${ic('radar')}<span><b>Radar de Mercado</b><small>Tendencia multi-marco y VR</small></span></button>
-          <button type="button" class="g-mod-btn" data-go="opciones">${ic('payoff')}<span><b>Estrategias Opciones</b><small>Black-Scholes y griegas</small></span></button>
-          <button type="button" class="g-mod-btn" data-go="replay">${ic('play')}<span><b>Market Replay</b><small>Simulación y Volume Profile</small></span></button>
-          <button type="button" class="g-mod-btn" data-go="metas">${ic('target')}<span><b>Objetivos Capital</b><small>${S.metas.length} meta(s) activas</small></span></button>
+          <button type="button" class="g-mod-btn" style="--mc:#2B9AFF" data-go="radar"><span class="g-mod-ic">${ic('radar')}</span><span class="g-mod-txt"><b>Radar de Mercado</b><small>Tendencia y volatilidad al día</small></span>${ic('chev','g-mod-go',2.2)}</button>
+          <button type="button" class="g-mod-btn" style="--mc:#8B6BFF" data-go="opciones"><span class="g-mod-ic">${ic('payoff')}</span><span class="g-mod-txt"><b>Estrategias Opciones</b><small>Black-Scholes y griegas</small></span>${ic('chev','g-mod-go',2.2)}</button>
+          <button type="button" class="g-mod-btn" style="--mc:#10E88A" data-go="replay"><span class="g-mod-ic">${ic('play')}</span><span class="g-mod-txt"><b>Market Replay</b><small>Practica vela por vela</small></span>${ic('chev','g-mod-go',2.2)}</button>
+          <button type="button" class="g-mod-btn" style="--mc:#F7B731" data-go="metas"><span class="g-mod-ic">${ic('target')}</span><span class="g-mod-txt"><b>Mis Metas</b><small>${S.metas.length} objetivo(s) con fecha</small></span>${ic('chev','g-mod-go',2.2)}</button>
         </div>
       </div>
     </div>
@@ -1138,6 +1207,7 @@ document.addEventListener('click',e=>{
   if(t.closest('#genyDrawerClose')){closeGenyDrawer();return}
   if(t.closest('#genyDrawerFull')){closeGenyDrawer(true);go('geny');return}
   const dChip=t.closest('#dChips button');if(dChip){const dq=$('#dQ');if(dq){dq.value=dChip.textContent;sendChat(true)}return}
+  const qChip=t.closest('[data-quick-geny]');if(qChip){const prompt=qChip.dataset.quickGeny||'';closePop();openGenyDrawer().then(()=>{const dq=$('#dQ');if(dq&&prompt){dq.value=prompt;sendChat(true)}});return}
   const uiBtn=t.closest('#modeSwitch [data-ui]');if(uiBtn){closePop();setUiMode(uiBtn.dataset.ui);return}
   const g=t.closest('[data-go]');if(g){closePop();if($('#genyDrawer')?.open)closeGenyDrawer(true);go(g.dataset.go);return}
   const b=t.closest('[data-act]');if(!b)return;
