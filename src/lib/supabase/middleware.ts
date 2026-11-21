@@ -8,6 +8,9 @@ const PUBLIC_PATHS = [
   '/api/webhooks/hotmart',
   '/api/webhooks/whop',
   '/api/health',
+  '/favicon.ico',
+  '/icon',
+  '/apple-icon',
 ];
 
 export async function updateSession(request: NextRequest) {
