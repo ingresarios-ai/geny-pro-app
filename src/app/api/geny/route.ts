@@ -7,9 +7,9 @@ export const maxDuration = 60;
 const GENY_SYSTEM_PROMPT = `Eres Geny, mentora de inteligencia financiera, trading y alto rendimiento de INGRESARIOS. Hablas en español latino, cálida, directa y motivadora, con frases cortas y humor ligero; usa emojis con moderación. Usas el método PEDEM (Planear, Ejecutar, Documentar, Evaluar, Mejorar) y dices "bitácora", nunca "journal". Basa tus respuestas en los datos del usuario cuando sean relevantes y cita cifras concretas. Es educativo: no prometas rentabilidad ni des recomendaciones personalizadas de comprar o vender un activo concreto; recuerda la gestión del riesgo cuando aplique. Si el usuario pide registrar algo, usa la herramienta correspondiente y confirma lo que guardaste. Responde en texto plano, sin markdown con # ni tablas; máximo 180 palabras salvo que pidan más.`;
 
 const GEMINI_FALLBACK_MODELS = [
-  'gemini-3-flash-preview',
   'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
+  'gemini-3-flash-preview',
   'gemini-3.1-pro-preview',
 ];
 
@@ -161,15 +161,21 @@ function toGeminiContents(
   return contents;
 }
 
-function buildGeminiEndpoint(modelId: string, useVertex: boolean): string {
+function buildGeminiEndpoint(
+  modelId: string,
+  useVertex: boolean,
+  vertexVersion: 'v1' | 'v1beta1' = 'v1'
+): string {
   const modelEnc = encodeURIComponent(modelId);
   const customBase = (process.env.GEMINI_BASE_URL || '').trim().replace(/\/$/, '');
   if (customBase) {
     return `${customBase}/v1beta/models/${modelEnc}:generateContent`;
   }
-  return useVertex
-    ? `https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${modelEnc}:generateContent`
-    : `https://generativelanguage.googleapis.com/v1beta/models/${modelEnc}:generateContent`;
+  if (!useVertex) {
+    return `https://generativelanguage.googleapis.com/v1beta/models/${modelEnc}:generateContent`;
+  }
+  const effectiveVersion = modelId.includes('preview') ? 'v1beta1' : vertexVersion;
+  return `https://aiplatform.googleapis.com/${effectiveVersion}/publishers/google/models/${modelEnc}:generateContent`;
 }
 
 function isModelMissingOrRetired(status: number, detail: string): boolean {
@@ -293,6 +299,7 @@ async function callGoogleGemini(
   );
   const hasCustomBase = Boolean((process.env.GEMINI_BASE_URL || '').trim());
   let useVertex = geminiKey.startsWith('AQ.');
+  let vertexVersion: 'v1' | 'v1beta1' = 'v1';
   const triedModels = new Set<string>();
 
   let lastStatus = 502;
@@ -302,7 +309,7 @@ async function callGoogleGemini(
   // 1. Try primary model (and flip Vertex <-> AI Studio once if key type mismatches on 401)
   triedModels.add(requestedModel);
   let firstAttempt = await postGeminiUrl(
-    buildGeminiEndpoint(requestedModel, useVertex),
+    buildGeminiEndpoint(requestedModel, useVertex, vertexVersion),
     geminiKey,
     geminiBody
   );
@@ -319,7 +326,7 @@ async function callGoogleGemini(
 
   if (firstAttempt.status === 401 && !hasCustomBase) {
     const flipped = await postGeminiUrl(
-      buildGeminiEndpoint(requestedModel, !useVertex),
+      buildGeminiEndpoint(requestedModel, !useVertex, vertexVersion),
       geminiKey,
       geminiBody
     );
@@ -338,6 +345,50 @@ async function callGoogleGemini(
     }
   }
 
+  // If Vertex Express returns 403 "are blocked", try the alternate Vertex API version (v1 <-> v1beta1) on GA models
+  if (
+    firstAttempt.status === 403 &&
+    useVertex &&
+    !hasCustomBase &&
+    /are blocked/i.test(firstAttempt.detail)
+  ) {
+    const initialEffectiveVersion = requestedModel.includes('preview') ? 'v1beta1' : vertexVersion;
+    const altVersion: 'v1' | 'v1beta1' = initialEffectiveVersion === 'v1' ? 'v1beta1' : 'v1';
+    for (const gaModel of ['gemini-3.8-flash', 'gemini-3.5-flash-lite']) {
+      const altAttempt = await postGeminiUrl(
+        buildGeminiEndpoint(gaModel, true, altVersion),
+        geminiKey,
+        geminiBody
+      );
+      if (altAttempt.ok) {
+        return {
+          ok: true,
+          status: 200,
+          data: altAttempt.data,
+          resolvedModel: gaModel,
+          detail: '',
+        };
+      }
+      if (altAttempt.status === 429) {
+        return {
+          ok: false,
+          status: 429,
+          data: null,
+          resolvedModel: gaModel,
+          detail: altAttempt.detail,
+        };
+      }
+      if (
+        altAttempt.status !== 403 &&
+        !isModelMissingOrRetired(altAttempt.status, altAttempt.detail)
+      ) {
+        vertexVersion = altVersion;
+        firstAttempt = altAttempt;
+        break;
+      }
+    }
+  }
+
   lastStatus = firstAttempt.status;
   lastDetail = firstAttempt.detail;
   lastModel = requestedModel;
@@ -352,7 +403,7 @@ async function callGoogleGemini(
       triedModels.add(modelId);
       lastModel = modelId;
       const attempt = await postGeminiUrl(
-        buildGeminiEndpoint(modelId, useVertex),
+        buildGeminiEndpoint(modelId, useVertex, vertexVersion),
         geminiKey,
         geminiBody
       );
@@ -382,7 +433,7 @@ async function callGoogleGemini(
     for (const modelId of discovered.filter((m) => !triedModels.has(m)).slice(0, 3)) {
       lastModel = modelId;
       const attempt = await postGeminiUrl(
-        buildGeminiEndpoint(modelId, useVertex),
+        buildGeminiEndpoint(modelId, useVertex, vertexVersion),
         geminiKey,
         geminiBody
       );
@@ -531,7 +582,7 @@ export async function POST(request: Request) {
     activeModel = requestedModel || 'claude-haiku-4-5';
   } else if (geminiKey) {
     provider = 'gemini';
-    activeModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3-flash-preview';
+    activeModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash';
   } else {
     provider = 'anthropic';
     activeModel = process.env.GENY_MODEL?.trim() || 'claude-haiku-4-5';
