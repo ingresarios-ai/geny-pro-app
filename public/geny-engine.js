@@ -153,9 +153,13 @@ function seed(){
 function blank(){return {v:1,ejemplo:false,nombre:(BOOT.firstName||"Trader"),reto:{inicio:today(),hechos:[]},diag:{paso:1,hecho:false,areas:{finanzas:false,inversiones:false,trading:false,mentalidad:false,metas:false},resp:{}},pedem:{planear:false,ejecutar:false,documentar:false,evaluar:false,mejorar:false},movs:[],trades:[],metas:[],checks:{},chat:[]}}
 
 const LS_KEY='genyPro:'+(BOOT.userId||'anon');
+const UI_KEY='genyUiMode:'+(BOOT.userId||'anon');
 let S=BOOT.initialState&&BOOT.initialState.v?BOOT.initialState:null;
 if(!S){try{S=JSON.parse(localStorage.getItem(LS_KEY))}catch(e){}}
 if(!S||!S.v)S=seed();
+let uiMode=S.uiMode||(()=>{try{return localStorage.getItem(UI_KEY)}catch(e){return null}})()||'guided';
+if(uiMode!=='classic'&&uiMode!=='guided')uiMode='guided';
+const isGuided=()=>uiMode==='guided';
 
 let lastSentJson=BOOT.initialState&&BOOT.initialState.v?JSON.stringify(BOOT.initialState):'';
 let lastSentMod='';
@@ -220,19 +224,92 @@ function avisos(){
   const sinNota=S.trades.filter(t=>!t.nota).length;if(sinNota)a.push(`${sinNota} operación(es) en tu bitácora no tienen nota.`);
   return a;
 }
+function avisosRich(){
+  const a=[];
+  if(!S.reto.hechos.includes(today())&&S.reto.hechos.length<21)a.push({txt:`Reto 21: tu misión del día ${retoDia()} está pendiente.`,go:'reto21'});
+  if(!S.checks[today()])a.push({txt:'Aún no haces tu check-in de mentalidad de hoy.',go:'mentalidad'});
+  if(!S.diag.hecho)a.push({txt:'Completa el diagnóstico inicial para personalizar tu plan.',act:'diag'});
+  const sinNota=S.trades.filter(t=>!t.nota).length;if(sinNota)a.push({txt:`${sinNota} operación(es) en tu bitácora no tienen nota.`,go:'trading'});
+  return a;
+}
 
 /* ---------- navegación ---------- */
 const TABS=[['inicio','Inicio','home'],['geny','Mi Geny','chat'],['dinero','Mi Dinero','wallet'],['trading','Mi Trading','candles'],['opciones','Estrategias','payoff'],['radar','Radar','radar'],['reto21','Reto 21','cal'],['replay','Replay','play'],['metas','Mis Metas','target'],['mentalidad','Mi Mentalidad','lotus'],['progreso','Mi Progreso','bars']];
+const PILLARS=[
+  ['inicio','Inicio','home',['inicio','progreso']],
+  ['reto21','Reto 21','cal',['reto21']],
+  ['trading','Trading','candles',['trading','radar','opciones','replay']],
+  ['dinero','Finanzas','wallet',['dinero','metas']],
+  ['mentalidad','Mentalidad','lotus',['mentalidad']]
+];
+const SUBNAVS={
+  inicio:[
+    ['inicio','Mi guía de hoy','Por dónde empezar'],
+    ['progreso','Mi progreso y PEDEM','Métricas y ciclo semanal']
+  ],
+  trading:[
+    ['trading','Bitácora','Tus operaciones y métricas'],
+    ['radar','Radar','Escanea oportunidades'],
+    ['opciones','Estrategias','Simulador de opciones'],
+    ['replay','Market Replay','Practica vela por vela']
+  ],
+  dinero:[
+    ['dinero','Mi Dinero','Ingresos, gastos y ahorro'],
+    ['metas','Mis Metas','Objetivos con fecha']
+  ]
+};
+const pillarOf=r=>PILLARS.find(([,,,rs])=>rs.includes(r))?.[0]||null;
+function subnavHtml(r){
+  const pk=pillarOf(r),list=pk?SUBNAVS[pk]:null;
+  if(!list)return '';
+  return `<nav class="subnav" aria-label="Secciones del módulo">${list.map(([k,l,d])=>`<button type="button" data-go="${k}" ${k===r?'aria-current="page"':''}><span>${l}</span><small>${d}</small></button>`).join('')}</nav>`;
+}
+function syncUiModeAttr(){
+  document.documentElement.dataset.ui=uiMode;
+  document.querySelectorAll('#modeSwitch [data-ui]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ui===uiMode?'true':'false'));
+}
+function setUiMode(m){
+  const next=m==='classic'?'classic':'guided';
+  if(next===uiMode)return;
+  uiMode=next;
+  try{localStorage.setItem(UI_KEY,uiMode)}catch(e){}
+  S.uiMode=uiMode;
+  if(uiMode==='classic'&&$('#genyDrawer')?.open)closeGenyDrawer?.();
+  save();syncUiModeAttr();render();
+  toast(uiMode==='classic'?'Vista Original activada (11 pestañas clásicas)':'Vista Nueva activada (navegación guiada y simplificada)');
+}
 function route(){const h=location.hash.slice(1);return TABS.some(t=>t[0]===h)?h:'inicio'}
 function go(v){if(location.hash.slice(1)===v)render();else location.hash=v;window.scrollTo({top:0})}
 addEventListener('hashchange',render);
 
 function render(){
   const r=route();
-  $('#tabs').innerHTML=TABS.map(([k,l,i])=>`<button class="tab" data-go="${k}" ${k===r?'aria-current="page"':''}>${ic(i)}${l}</button>`).join('');
-  $('#demo').hidden=!S.ejemplo;
+  syncUiModeAttr();
+  const guided=isGuided();
+  const mob=$('#mobTabs'),fab=$('#genyFab');
+  if(guided){
+    const pk=pillarOf(r);
+    $('#tabs').innerHTML=PILLARS.map(([k,l,i])=>`<button class="tab" data-go="${k}" ${k===pk?'aria-current="page"':''}>${ic(i)}<span>${l}</span>${k==='reto21'?`<span class="tab-badge">${S.reto.hechos.length}/21</span>`:''}</button>`).join('');
+    if(mob){
+      mob.hidden=false;
+      mob.innerHTML=PILLARS.map(([k,l,i])=>`<button type="button" class="mob-tab" data-go="${k}" ${k===pk?'aria-current="page"':''}>${ic(i)}<span>${l}</span></button>`).join('');
+    }
+    if(fab)fab.hidden=(r==='geny');
+    $('#demo').hidden=!S.ejemplo||(r==='inicio'&&!S.onboarded);
+    const backBtn=r==='geny'?'<div style="margin:14px 0 0"><button type="button" class="btn sm ghost" data-go="inicio">← Volver al inicio</button></div>':'';
+    $('#view').innerHTML=r==='inicio'?subnavHtml(r)+inicioGuided():backBtn+subnavHtml(r)+VIEWS[r]();
+  }else{
+    $('#tabs').innerHTML=TABS.map(([k,l,i])=>`<button class="tab" data-go="${k}" ${k===r?'aria-current="page"':''}>${ic(i)}${l}</button>`).join('');
+    if(mob)mob.hidden=true;
+    if(fab)fab.hidden=true;
+    $('#demo').hidden=!S.ejemplo;
+    $('#view').innerHTML=VIEWS[r]();
+  }
   $('#bellDot').hidden=!avisos().length;
-  $('#view').innerHTML=VIEWS[r]();
+  document.querySelectorAll('#tabs [aria-current="page"], .subnav [aria-current="page"]').forEach(el=>{
+    try{el.scrollIntoView({block:'nearest',inline:'nearest',container:'nearest'})}
+    catch(_){el.scrollIntoView({block:'nearest',inline:'nearest'})}
+  });
   if(r==='geny')afterChat();
   if(r==='reto21')rkMaybe();
   if(r==='opciones')opcDraw();
@@ -258,6 +335,97 @@ const areaBars=s=>AREAS.map(([k,l,i,c])=>`<div class="area"><div class="lbl"><sp
 const PEDEM=[['planear','Planear','Definir mi plan de la semana'],['ejecutar','Ejecutar','Operar según mi estrategia'],['documentar','Documentar','Registrar mis operaciones'],['evaluar','Evaluar','Analizar mis resultados'],['mejorar','Mejorar','Ajustar y optimizar']];
 const pedemList=()=>`<ul class="pedem">${PEDEM.map(([k,l,d])=>`<li><button data-act="pedem" data-k="${k}" aria-pressed="${!!S.pedem[k]}"><span class="chk ${S.pedem[k]?'on':''}">${S.pedem[k]?ic('ok','',3):''}</span><span><b>${l}</b> – ${d}</span></button></li>`).join('')}</ul>`;
 const DAREAS=[['finanzas','Mis finanzas personales','wallet','var(--amber)'],['inversiones','Mis inversiones','bars','var(--profit)'],['trading','Mi trading','candles','var(--blue)'],['mentalidad','Mi mentalidad y hábitos','lotus','var(--magenta)'],['metas','Mis metas financieras','target','var(--violet)']];
+
+function inicioGuided(){
+  const s=scores(),d=retoDia(),f=finanzas(),t=tstats(),hoy=today();
+  const tradesHoy=S.trades.filter(x=>x.fecha===hoy).length,movsHoy=S.movs.filter(x=>x.fecha===hoy).length;
+  const welcome=(S.ejemplo&&!S.onboarded)?`
+    <section class="g-welcome" aria-label="Bienvenida a Geny Pro">
+      <div class="g-welcome-bot">${BOT}</div>
+      <div>
+        <h2>¡Hola, ${esc(S.nombre)}! Estás viendo datos de prueba</h2>
+        <p>Cargamos movimientos, operaciones y metas de ejemplo para que veas cómo se llena la plataforma. ¿Cómo prefieres empezar?</p>
+        <div class="inline">
+          <button type="button" class="btn" data-act="startFresh">Empezar desde cero con mis datos</button>
+          <button type="button" class="btn ghost" data-act="keepDemo">Explorar primero con el ejemplo</button>
+        </div>
+      </div>
+    </section>`:'';
+
+  const isSetup=!S.diag.hecho||(!S.ejemplo&&S.movs.length===0&&S.trades.length===0);
+  let roadTitle='',roadDone=0,steps=[];
+  if(isSetup){
+    const d1=!!S.diag.hecho;
+    const d2=!S.ejemplo&&(S.movs.length>0||S.trades.length>0);
+    const d3=!S.ejemplo&&S.reto.hechos.length>0;
+    roadDone=(d1?1:0)+(d2?1:0)+(d3?1:0);
+    roadTitle='Por dónde empezar · Tus 3 primeros pasos';
+    steps=[
+      {done:d1,tag:'Paso 1 · 1 min',t:'Personaliza tu plan',p:d1?'Diagnóstico completo. Ya puedes repetirlo cuando quieras.':'Responde 4 bloques breves sobre tus finanzas, trading y mentalidad.',btn:`<button type="button" class="btn ${d1?'sm ghost':''}" data-act="diag">${d1?'Repetir diagnóstico':'Comenzar diagnóstico'}</button>`},
+      {done:d2,tag:'Paso 2 · Tu base',t:'Registra tu primer dato real',p:d2?'Ya tienes registros reales cargados en tu cuenta.':'Anota tu primer ingreso/gasto en Finanzas o guarda una operación en tu bitácora.',btn:`<div class="inline"><button type="button" class="btn sm ${d1&&!d2?'':'ghost'}" data-go="dinero">Ir a Mi Dinero</button><button type="button" class="btn sm ghost" data-act="nuevoTrade">+ Trade</button></div>`},
+      {done:d3,tag:`Paso 3 · Día ${d}/21`,t:'Arranca tu Reto 21',p:esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${d1&&d2&&!d3?'':'ghost'}" data-go="reto21">Abrir Reto 21</button>`}
+    ];
+  }else{
+    const c1=!!S.checks[hoy],c2=tradesHoy>0||movsHoy>0,c3=S.reto.hechos.includes(hoy);
+    roadDone=(c1?1:0)+(c2?1:0)+(c3?1:0);
+    roadTitle='Tu rutina de hoy en 3 minutos';
+    steps=[
+      {done:c1,tag:'1 · Antes de operar',t:'Check-in mental y hábitos',p:c1?`Check-in de hoy listo (control ${S.checks[hoy]?.control||'–'}/5).`:'Mide tu ánimo, energía y control emocional en 1 minuto antes de abrir gráficos.',btn:`<button type="button" class="btn sm ${c1?'ghost':''}" data-go="mentalidad">${c1?'Ver check-in':'Hacer check-in'}</button>`},
+      {done:c2,tag:'2 · En el día',t:'Ejecuta y documenta',p:c2?`Hoy registraste ${tradesHoy} operaci${tradesHoy===1?'ón':'ones'} y ${movsHoy} movimiento(s).`:'Anota tu operación apenas la cierres o actualiza tus gastos del día.',btn:`<div class="inline"><button type="button" class="btn sm ${c1&&!c2?'':'ghost'}" data-act="nuevoTrade">+ Operación</button><button type="button" class="btn sm ghost" data-go="dinero">+ Finanzas</button></div>`},
+      {done:c3,tag:`3 · Día ${d} de 21`,t:'Cierra tu misión del Reto',p:c3?'¡Misión de hoy completada! Vuelve mañana por la siguiente.':esc(MISIONES[d-1]),btn:`<button type="button" class="btn sm ${c1&&c2&&!c3?'':'ghost'}" data-go="reto21">${c3?'Ver bitácora del día':'Completar día '+d}</button>`}
+    ];
+  }
+  const curIdx=steps.findIndex(x=>!x.done);
+
+  return `<div class="g-home">
+    ${welcome}
+    <div class="g-hero">
+      <div><h1>¡Hola, ${esc(S.nombre)}!</h1><p>${isSetup?'Sigue estos 3 pasos en orden para dejar tu espacio listo hoy mismo.':'Aquí tienes tu ruta diaria, tu progreso y tus herramientas en un solo vistazo.'}</p></div>
+      <div class="inline">
+        <button type="button" class="btn sm ghost" data-act="openGeny">${ic('chat')}Preguntarle a Geny</button>
+        <button type="button" class="btn sm" data-act="nuevoTrade">${ic('candles')}Registrar operación</button>
+      </div>
+    </div>
+
+    <section class="panel glow">
+      <div class="g-roadmap-head">
+        <h2>${roadTitle}</h2>
+        <span class="badge active num">${roadDone}/3 completados</span>
+      </div>
+      <div class="g-steps">
+        ${steps.map((st,i)=>`<div class="g-step ${st.done?'done':i===curIdx?'cur':''}">
+          <div>
+            <div class="g-step-top"><span class="g-step-num">${st.done?'✓':i+1}</span><span class="tag ${st.done?'up':''}">${st.tag}</span></div>
+            <h3>${st.t}</h3>
+            <p>${st.p}</p>
+          </div>
+          <div>${st.btn}</div>
+        </div>`).join('')}
+      </div>
+    </section>
+
+    <div class="g-summary">
+      <div class="panel">
+        <div class="ph"><h2>Mi progreso general</h2><button class="btn sm ghost" data-go="progreso">Ver PEDEM y detalle →</button></div>
+        <div class="ringwrap"><div class="ring">${ring(s.gen)}<b>${s.gen}%</b></div><div class="areas">${areaBars(s)}</div></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>Pulso rápido y herramientas</h2><span class="muted num" style="font-size:12.5px">Día ${d}/21</span></div>
+        <div class="g-kpis">
+          <div class="g-kpi"><span>Disponible</span><b class="${f.bal<0?'down':'up'}">${money(Math.round(f.bal))}</b></div>
+          <div class="g-kpi"><span>Trading P&amp;L</span><b class="${t.total>=0?'up':'down'}">${money(+t.total.toFixed(2))}</b></div>
+          <div class="g-kpi"><span>Reto 21</span><b>${S.reto.hechos.length}/21</b></div>
+        </div>
+        <div class="g-tools">
+          <button type="button" class="btn sm ghost" data-go="radar">${ic('radar')}Escanear Radar</button>
+          <button type="button" class="btn sm ghost" data-go="opciones">${ic('payoff')}Simular Opciones</button>
+          <button type="button" class="btn sm ghost" data-go="replay">${ic('play')}Market Replay</button>
+          <button type="button" class="btn sm ghost" data-go="metas">${ic('target')}Mis Metas (${S.metas.length})</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
 
 const VIEWS={
 inicio(){
@@ -335,7 +503,7 @@ dinero(){
     </form></div>
    <div style="display:grid;gap:18px;min-width:0">
     <div class="panel"><div class="ph"><h2>Gastos por categoría</h2></div>${Object.keys(cats).length?`<div class="cats">${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`<div class="area"><div class="lbl"><span>${esc(c)}</span><span class="num">${money(v)}</span></div><div class="bar"><i style="width:${v/mx*100}%;background:var(--amber)"></i></div></div>`).join('')}</div>`:'<div class="empty">Registra tu primer gasto y verás aquí en qué se va tu dinero.</div>'}</div>
-    <div class="panel"><div class="ph"><h2>Movimientos</h2></div>${S.movs.length?`<div class="tbl"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Nota</th><th class="n">Monto</th><th></th></tr></thead><tbody>${[...S.movs].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`<tr><td class="num">${m.fecha}</td><td><span class="tag" style="color:${m.tipo==='ingreso'?'var(--profit)':m.tipo==='gasto'?'var(--loss)':'var(--cyan)'}">${m.tipo}</span></td><td>${esc(m.cat)}</td><td class="muted">${esc(m.nota)}</td><td class="n">${money(+m.monto)}</td><td><button class="x" data-act="del" data-col="movs" data-id="${m.id}" aria-label="Borrar">✕</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Aún no hay movimientos.</div>'}</div>
+    <div class="panel"><div class="ph"><h2>Movimientos</h2></div>${S.movs.length?`<div class="tbl"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Nota</th><th class="n">Monto</th><th></th></tr></thead><tbody>${[...S.movs].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(m=>`<tr><td class="num">${m.fecha}</td><td><span class="tag" style="color:${m.tipo==='ingreso'?'var(--profit)':m.tipo==='gasto'?'var(--loss)':'var(--cyan)'}">${m.tipo}</span></td><td>${esc(m.cat)}</td><td class="muted">${esc(m.nota)}</td><td class="n">${money(+m.monto)}</td><td><button class="x" data-act="del" data-col="movs" data-id="${m.id}" aria-label="Borrar">✕</button></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Aún no hay movimientos.${isGuided()?'<div style="margin-top:10px"><button type="button" class="btn sm" data-act="focusInput" data-target="m-monto">Registrar primer movimiento</button></div>':''}</div>`}</div>
    </div></div>`;
 },
 
@@ -357,7 +525,7 @@ trading(){
    <div class="panel"><div class="ph"><h2>Resultado por emoción</h2></div>${Object.keys(emos).length?`<div class="tbl"><table><thead><tr><th>Emoción</th><th class="n">Trades</th><th class="n">P&amp;L</th></tr></thead><tbody>${Object.entries(emos).sort((a,b)=>b[1].p-a[1].p).map(([e,v])=>`<tr><td>${esc(e)}</td><td class="n">${v.n}</td><td class="n ${v.p>=0?'up':'down'}">${money(+v.p.toFixed(2))}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Sin datos todavía.</div>'}</div>
   </div>
   <div class="panel" style="margin-bottom:18px"><div class="ph"><h2>Resultado por tipo y estrategia</h2></div>${Object.keys(tipos).length?`<div class="tbl"><table><thead><tr><th>Tipo</th><th class="n">Trades</th><th class="n">Acierto</th><th class="n">P&amp;L</th></tr></thead><tbody>${Object.entries(tipos).sort((a,b)=>b[1].p-a[1].p).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n">${v.n}</td><td class="n">${Math.round(v.w/v.n*100)}%</td><td class="n ${v.p>=0?'up':'down'}">${money(+v.p.toFixed(2))}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Sin datos todavía.</div>'}</div>
-  <div class="panel"><div class="ph"><h2>Bitácora</h2></div>${S.trades.length?`<div class="tbl"><table><thead><tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th>Dir.</th><th class="n">Entrada</th><th class="n">Salida</th><th class="n">Cant.</th><th>Setup</th><th>Plan</th><th>Emoción</th><th>Nota</th><th class="n">P&amp;L</th><th></th></tr></thead><tbody>${[...S.trades].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(x=>{const p=pnl(x);return `<tr><td class="num">${x.fecha}</td><td><b>${esc(x.activo)}</b></td><td style="min-width:120px">${esc(tipoLbl(x))}${x.tipo==='opciones'&&(x.strikes||x.venc)?`<br><span class="muted" style="font-size:12px">${esc([x.strikes,x.venc&&'vence '+x.venc].filter(Boolean).join(' · '))}</span>`:''}</td><td><span class="tag">${x.tipo==='opciones'?(x.dir==='short'?'Crédito':'Débito'):(x.dir==='long'?'Compra':'Venta')}</span></td><td class="n">${x.entrada??'—'}</td><td class="n">${x.salida??'—'}</td><td class="n">${x.cantidad}</td><td>${esc(x.setup)}</td><td>${x.plan?'<span class="up">Sí</span>':'<span class="down">No</span>'}</td><td>${esc(x.emo)}</td><td class="muted" style="min-width:160px">${esc(x.nota)}</td><td class="n ${p>=0?'up':'down'}">${money(+p.toFixed(2))}</td><td><button class="x" data-act="del" data-col="trades" data-id="${x.id}" aria-label="Borrar">✕</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">Tu bitácora está vacía. Registra tu primera operación, aunque sea en simulador.</div>'}</div>
+  <div class="panel"><div class="ph"><h2>Bitácora</h2></div>${S.trades.length?`<div class="tbl"><table><thead><tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th>Dir.</th><th class="n">Entrada</th><th class="n">Salida</th><th class="n">Cant.</th><th>Setup</th><th>Plan</th><th>Emoción</th><th>Nota</th><th class="n">P&amp;L</th><th></th></tr></thead><tbody>${[...S.trades].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(x=>{const p=pnl(x);return `<tr><td class="num">${x.fecha}</td><td><b>${esc(x.activo)}</b></td><td style="min-width:120px">${esc(tipoLbl(x))}${x.tipo==='opciones'&&(x.strikes||x.venc)?`<br><span class="muted" style="font-size:12px">${esc([x.strikes,x.venc&&'vence '+x.venc].filter(Boolean).join(' · '))}</span>`:''}</td><td><span class="tag">${x.tipo==='opciones'?(x.dir==='short'?'Crédito':'Débito'):(x.dir==='long'?'Compra':'Venta')}</span></td><td class="n">${x.entrada??'—'}</td><td class="n">${x.salida??'—'}</td><td class="n">${x.cantidad}</td><td>${esc(x.setup)}</td><td>${x.plan?'<span class="up">Sí</span>':'<span class="down">No</span>'}</td><td>${esc(x.emo)}</td><td class="muted" style="min-width:160px">${esc(x.nota)}</td><td class="n ${p>=0?'up':'down'}">${money(+p.toFixed(2))}</td><td><button class="x" data-act="del" data-col="trades" data-id="${x.id}" aria-label="Borrar">✕</button></td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty">Tu bitácora está vacía. Registra tu primera operación, aunque sea en simulador.${isGuided()?'<div style="margin-top:10px"><button type="button" class="btn sm" data-act="nuevoTrade">Registrar mi primera operación</button></div>':''}</div>`}</div>
   <p class="risk">Herramienta educativa. Los resultados pasados no garantizan resultados futuros; operar implica riesgo de pérdida de capital.</p>`;
 },
 
@@ -373,7 +541,7 @@ metas(){
    <div>${S.metas.length?`<div class="goals">${S.metas.map(m=>{const p=clamp(m.actual/m.objetivo*100),dl=Math.ceil((new Date(m.fecha)-new Date(today()))/864e5);return `<div class="goal"><div class="t"><div><span class="tag">${esc(m.area)}</span><h3 style="margin-top:6px">${esc(m.titulo)}</h3></div><button class="x" data-act="del" data-col="metas" data-id="${m.id}" aria-label="Borrar meta">✕</button></div>
      <div class="lbl area"><div class="lbl"><span class="num">${(+m.actual).toLocaleString('es-CO')} / ${(+m.objetivo).toLocaleString('es-CO')}</span><span class="num">${p}%</span></div><div class="bar"><i style="width:${p}%;background:${p>=100?'var(--profit)':'var(--magenta)'}"></i></div></div>
      <span class="muted" style="font-size:13px">${p>=100?'¡Meta cumplida!':dl>=0?`Faltan ${dl} días`:`Venció hace ${-dl} días`}</span>
-     <div class="inline"><input type="number" step="any" id="upd-${m.id}" aria-label="Nuevo avance" placeholder="Nuevo avance"><button class="btn sm ghost" data-act="updMeta" data-id="${m.id}">Actualizar avance</button></div></div>`}).join('')}</div>`:'<div class="empty">Crea tu primera meta. Empieza por una que puedas medir esta semana.</div>'}</div>
+     <div class="inline"><input type="number" step="any" id="upd-${m.id}" aria-label="Nuevo avance" placeholder="Nuevo avance"><button class="btn sm ghost" data-act="updMeta" data-id="${m.id}">Actualizar avance</button></div></div>`}).join('')}</div>`:`<div class="empty">Crea tu primera meta. Empieza por una que puedas medir esta semana.${isGuided()?'<div style="margin-top:10px"><button type="button" class="btn sm" data-act="focusInput" data-target="g-titulo">Crear mi primera meta</button></div>':''}</div>`}</div>
   </div>`;
 },
 
@@ -883,10 +1051,12 @@ const RKB={db:undefined,id:null,last:'',
 
 /* ---------- eventos ---------- */
 document.addEventListener('click',e=>{
-  const g=e.target.closest('[data-go]');if(g){closePop();go(g.dataset.go);return}
+  const uiBtn=e.target.closest('[data-ui]');if(uiBtn){closePop();setUiMode(uiBtn.dataset.ui);return}
+  const g=e.target.closest('[data-go]');if(g){closePop();if($('#genyDrawer')?.open)closeGenyDrawer();go(g.dataset.go);return}
   const b=e.target.closest('[data-act]');if(!b)return;
   const a=b.dataset.act;
   if(a==='closeBg'&&e.target!==b)return;
+  if(b.closest('.pop')&&a!=='askReset')closePop();
   const A={
    closeBg:closeModal,close:closeModal,
    rkOrden(){RK.orden=b.dataset.o;const pn=$('#rkPanel');if(pn)pn.outerHTML=rkPanel()},
@@ -909,11 +1079,15 @@ sesion(){startSesion(b.dataset.k)},nuevoTrade:tradeModal,diag:diagModal,
    updMeta(){const v=parseFloat($('#upd-'+b.dataset.id).value);if(isNaN(v)){toast('Escribe un número para actualizar el avance');return}S.metas.find(m=>m.id===b.dataset.id).actual=v;save();render();toast('Avance actualizado')},
    score(){const c=S.checks[today()]||(S.checks[today()]={animo:0,energia:0,control:0,h:{}});c[b.dataset.k]=+b.dataset.n;save();render()},
    habit(){const c=S.checks[today()]||(S.checks[today()]={animo:0,energia:0,control:0,h:{}});c.h[b.dataset.k]=!c.h[b.dataset.k];save();render()},
-   chip(){$('#q').value=b.textContent;sendChat()},
-   clearDemo(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking;S=blank();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;save();render();toast('Listo. Empiezas con tus propios datos')},
+   chip(){$('#q').value=b.textContent;sendChat(false)},
+   openGeny(){openGenyDrawer()},
+   focusInput(){const el=document.getElementById(b.dataset.target||'');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.focus()}},
+   startFresh(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking,ui=S.uiMode;S=blank();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;if(ui)S.uiMode=ui;S.onboarded=true;save();render();toast('¡Listo! Empiezas desde cero con tus propios datos')},
+   keepDemo(){S.onboarded=true;save();render();toast('Explorando con el ejemplo. Arriba puedes limpiar los datos cuando quieras')},
+   clearDemo(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking,ui=S.uiMode;S=blank();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;if(ui)S.uiMode=ui;S.onboarded=true;save();render();toast('Listo. Empiezas con tus propios datos')},
    askReset(){$('#pop').innerHTML=`<h3>¿Borrar todos tus datos?</h3><p class="muted" style="font-size:13px;margin:0 0 10px">Se eliminan bitácora, movimientos, metas y check-ins. No se puede deshacer.</p><div class="inline"><button class="btn sm danger" data-act="doReset">Sí, borrar</button><button class="btn sm ghost" data-act="closePop">Cancelar</button></div>`},
-   doReset(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking;S=blank();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;save();closePop();render();toast('Datos borrados')},
-   loadDemo(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking;S=seed();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;save();closePop();render();toast('Datos de ejemplo cargados')},
+   doReset(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking,ui=S.uiMode;S=blank();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;if(ui)S.uiMode=ui;S.onboarded=true;save();closePop();render();toast('Datos borrados')},
+   loadDemo(){const n=S.nombre,jr=S.jr,al=S.alias,rk=S.enRanking,ui=S.uiMode;S=seed();S.nombre=n;if(jr)S.jr=jr;if(al)S.alias=al;if(rk!==undefined)S.enRanking=rk;if(ui)S.uiMode=ui;save();closePop();render();toast('Datos de ejemplo cargados')},
    saveName(){S.nombre=($('#nombre').value||'Trader').trim().slice(0,30);save();closePop();render();toast('Nombre guardado')},
    signOut(){if(window.__GENY_SIGNOUT__)window.__GENY_SIGNOUT__();else location.href='/login'},
    closePop
@@ -922,7 +1096,8 @@ sesion(){startSesion(b.dataset.k)},nuevoTrade:tradeModal,diag:diagModal,
 });
 document.addEventListener('submit',e=>{
   e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));
-  if(f.id==='compose'){sendChat();return}
+  if(f.id==='compose'){sendChat(false);return}
+  if(f.id==='dCompose'){sendChat(true);return}
   const k=f.dataset.form;
   if(k==='mov'){S.movs.push({id:uid(),fecha:d.fecha||today(),tipo:d.tipo,cat:d.cat.trim(),monto:+d.monto,nota:d.nota});toast('Movimiento guardado')}
   if(k==='r21plan'||k==='r21rev'){
@@ -953,15 +1128,84 @@ document.addEventListener('submit',e=>{
   save();render();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePop()}
-  if(e.target.id==='q'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat()}});
+  if(e.target.id==='q'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat(false)}
+  if(e.target.id==='dQ'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat(true)}});
 function closePop(){$('#pop').hidden=true;$('#bell').setAttribute('aria-expanded','false');$('#me').setAttribute('aria-expanded','false')}
-$('#bell').onclick=e=>{e.stopPropagation();const p=$('#pop');if(!p.hidden&&p.dataset.k==='bell'){closePop();return}const a=avisos();p.dataset.k='bell';p.innerHTML=`<h3>Avisos</h3>${a.length?`<ul>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="muted">Todo al día. Buen trabajo.</p>'}`;p.hidden=false;$('#bell').setAttribute('aria-expanded','true')};
+$('#bell').onclick=e=>{e.stopPropagation();const p=$('#pop');if(!p.hidden&&p.dataset.k==='bell'){closePop();return}p.dataset.k='bell';
+  if(isGuided()){const a=avisosRich();p.innerHTML=`<h3>Avisos</h3>${a.length?`<div class="pop-list">${a.map(x=>`<button type="button" class="bell-item" ${x.go?`data-go="${x.go}"`:`data-act="${x.act}"`}><span>${esc(x.txt)}</span><b>Ir →</b></button>`).join('')}</div>`:'<p class="muted">Todo al día. Buen trabajo.</p>'}`;}
+  else{const a=avisos();p.innerHTML=`<h3>Avisos</h3>${a.length?`<ul>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="muted">Todo al día. Buen trabajo.</p>'}`;}
+  p.hidden=false;$('#bell').setAttribute('aria-expanded','true')};
 $('#me').onclick=e=>{e.stopPropagation();const p=$('#pop');if(!p.hidden&&p.dataset.k==='me'){closePop();return}p.dataset.k='me';p.innerHTML=`<h3>Mi cuenta</h3><div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;display:grid;gap:4px"><span style="color:var(--fg);font-weight:500">${esc(BOOT.email||'')}</span><span><span class="badge active">${esc(BOOT.membershipLabel||'Membresía activa')}</span></span></div><form class="f" onsubmit="return false"><label>¿Cómo te llamo?<input id="nombre" value="${esc(S.nombre)}" maxlength="30"></label><button type="button" class="btn sm" data-act="saveName">Guardar nombre</button></form><div class="inline" style="margin-top:12px"><button class="btn sm ghost" data-act="loadDemo">Cargar ejemplo</button><button class="btn sm ghost" data-act="askReset">Borrar mis datos</button></div><div class="inline" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);justify-content:space-between"><a href="/actualizar-clave" class="btn sm ghost">Cambiar clave</a><button type="button" class="btn sm danger" data-act="signOut">Cerrar sesión</button></div><p class="muted" style="font-size:11.5px;margin:10px 0 0">Sincronizado en la nube con tu cuenta Geny Pro.</p>`;p.hidden=false;$('#me').setAttribute('aria-expanded','true')};
 document.addEventListener('click',e=>{if(!e.target.closest('.icons'))closePop()});
 
-/* ---------- Geny (IA) ---------- */
+/* ---------- Geny (IA) + Drawer Deslizable ---------- */
 let sending=false;
-function afterChat(){const m=$('#msgs');if(m)m.scrollTop=m.scrollHeight}
+function afterChat(){const m=$('#msgs');if(m)m.scrollTop=m.scrollHeight;const dm=$('#dMsgs');if(dm)dm.scrollTop=dm.scrollHeight}
+function drawerChipsFor(r){
+  return ({
+    radar:['¿Qué estrategia del Radar me conviene?','¿Cómo interpreto el VR?','Arma mi plan PEDEM semanal'],
+    opciones:['Explícame esta estrategia y su riesgo','¿Qué pasa si sube la volatilidad?','¿Cómo elijo strikes más seguros?'],
+    trading:['¿Qué patrón ves en mi bitácora?','¿Cómo voy con mi disciplina?','Analiza mis errores por emoción'],
+    dinero:['¿Cómo va mi tasa de ahorro?','¿Dónde puedo recortar gastos?','Registra un gasto de $35 en comida'],
+    metas:['¿Cómo acelero mi meta principal?','Crea una meta de ahorro a 6 meses'],
+    reto21:['¿Cómo voy en el Reto 21?','Ayúdame con la misión de hoy','¿Qué regla rompo más?'],
+    mentalidad:['Dame un reset rápido tras una pérdida','¿Cómo mejoro mi rutina pre-mercado?']
+  }[r])||['¿Por dónde empiezo hoy?','¿Qué patrón ves en mi bitácora?','¿Cómo va mi tasa de ahorro?','Registra un gasto de $45 en comida'];
+}
+function renderDrawerChat(){
+  const chips=$('#dChips'),dm=$('#dMsgs');
+  if(chips)chips.innerHTML=drawerChipsFor(route()).map(c=>`<button type="button" class="chip">${esc(c)}</button>`).join('');
+  if(dm)dm.innerHTML=S.chat.length?S.chat.map(m=>`<div class="msg ${m.role==='user'?'me':'g'}">${esc(m.content)}</div>`).join(''):`<div class="msg g">¡Hola, ${esc(S.nombre)}! Pregúntame lo que quieras sobre esta vista o pídeme registrar una operación, gasto o meta sin salir de aquí.</div>`;
+  afterChat();
+}
+const gd=$('#genyDrawer'),gdSc=$('#genyDrawerScroller'),gdSh=$('#genyDrawerSheet'),gdFab=$('#genyFab'),gdClose=$('#genyDrawerClose'),gdFull=$('#genyDrawerFull');
+let drawerOpening=false,drawerOpenTimer=null;
+function closeGenyDrawer(){
+  drawerOpening=false;clearTimeout(drawerOpenTimer);
+  if(!gd||!gd.open||!gdSc)return;
+  gdSc.scrollTo({left:0,behavior:'auto'});
+}
+async function openGenyDrawer(){
+  if(!gd||!gdSc||!gdSh)return go('geny');
+  renderDrawerChat();
+  drawerOpening=true;clearTimeout(drawerOpenTimer);
+  if(!gd.open)gd.showModal();
+  if(!CSS.supports('scroll-initial-target','nearest')){
+    gdSc.scrollTo({left:0,behavior:'instant'});
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  }
+  gdSc.scrollTo({left:gdSh.offsetWidth,behavior:'auto'});
+  drawerOpenTimer=setTimeout(()=>{drawerOpening=false},420);
+  if(gdFab)gdFab.setAttribute('aria-expanded','true');
+}
+if(gd&&gdSc&&gdSh){
+  if(!CSS.supports('animation-timeline: scroll()')){
+    gdSc.addEventListener('scroll',()=>{
+      const ratio=Math.max(0,Math.min(1,gdSc.scrollLeft/Math.max(1,gdSh.offsetWidth)));
+      gd.style.setProperty('--drawer-backdrop',String(ratio));
+    });
+  }
+  const visThresh=1/Math.max(320,window.innerWidth);
+  const gdObs=new IntersectionObserver(entries=>{
+    const entry=entries[entries.length-1];
+    if(!entry||!gd.open)return;
+    if(entry.intersectionRatio>=0.25)drawerOpening=false;
+    if(!drawerOpening&&entry.intersectionRatio<visThresh){
+      gd.close();
+      if(gdFab)gdFab.setAttribute('aria-expanded','false');
+    }else if(entry.intersectionRatio>=0.98&&gdFab){
+      gdFab.setAttribute('aria-expanded','true');
+    }
+  },{root:gd,threshold:[visThresh,0.25,0.98]});
+  gdObs.observe(gdSh);
+  gd.addEventListener('click',e=>{if(!gdSh.contains(e.target))closeGenyDrawer()});
+  gd.addEventListener('cancel',e=>{if(e.cancelable){e.preventDefault();closeGenyDrawer()}});
+  gdClose?.addEventListener('click',closeGenyDrawer);
+  gdFab?.addEventListener('click',openGenyDrawer);
+  gdFull?.addEventListener('click',()=>{closeGenyDrawer();go('geny')});
+  $('#dCompose')?.addEventListener('submit',e=>{e.preventDefault();sendChat(true)});
+  $('#dChips')?.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const dq=$('#dQ');if(dq){dq.value=b.textContent;sendChat(true)}});
+}
 function contexto(){
   const s=scores(),f=finanzas(),t=tstats();
   return `DATOS ACTUALES DEL USUARIO (${today()}):
@@ -985,27 +1229,32 @@ const TOOLS=[
   execute(i){S.trades.push({id:uid(),fecha:today(),activo:String(i.activo).toUpperCase(),dir:i.dir,entrada:+i.entrada,salida:+i.salida,cantidad:+i.cantidad,setup:i.setup||'Otro',plan:i.siguio_plan!==false,emo:i.emocion||'Calma',nota:i.nota||''});save();return {ok:true}}},
  {name:'crear_meta',description:'Crea una meta medible en Mis Metas.',inputSchema:{type:'object',properties:{titulo:{type:'string'},area:{type:'string'},objetivo:{type:'number'},actual:{type:'number'},fecha:{type:'string'}},required:['titulo','objetivo']},
   execute(i){S.metas.push({id:uid(),titulo:i.titulo,area:i.area||'Finanzas',objetivo:+i.objetivo,actual:+i.actual||0,fecha:i.fecha||daysAgo(-90)});save();return {ok:true}}}];
-async function sendChat(){
-  const q=$('#q');if(!q||sending)return;const text=q.value.trim();if(!text)return;
-  q.value='';sending=true;$('#send').disabled=true;
+async function sendChat(inDrawer=false){
+  const q=inDrawer?$('#dQ'):$('#q'),btn=inDrawer?$('#dSend'):$('#send'),box=inDrawer?$('#dMsgs'):$('#msgs');
+  if(!q||!box||sending)return;const text=q.value.trim();if(!text)return;
+  q.value='';sending=true;if(btn)btn.disabled=true;
   S.chat.push({role:'user',content:text});window.jrBump?.('geny');
-  const box=$('#msgs');box.insertAdjacentHTML('beforeend',`<div class="msg me">${esc(text)}</div><div class="msg g" id="live">Pensando…</div>`);afterChat();
-  const live=$('#live');
+  const liveId=inDrawer?'dLive':'live';
+  box.insertAdjacentHTML('beforeend',`<div class="msg me">${esc(text)}</div><div class="msg g" id="${liveId}">Pensando…</div>`);afterChat();
+  const live=document.getElementById(liveId);
+  let toolRan=false;
+  const wrappedTools=TOOLS.map(t=>({...t,execute(inp){toolRan=true;return t.execute(inp)}}));
   try{
     const sample=window.claude?.use?await claude.use('sample'):null;
     if(!sample){live.textContent='No estoy disponible en este momento. Mientras tanto, todos los módulos funcionan sin mí.';S.chat.pop();return}
     const hist=S.chat.slice(-12,-1).map(m=>({role:m.role,content:m.content}));
     while(hist.length&&hist[0].role!=='user')hist.shift();
     const msgs=[...hist,{role:'user',content:text}];
-    const r=await sample(msgs,{cache:false,context:contexto(),tools:TOOLS,onText:u=>{live.textContent=u.text;afterChat()}});
+    const r=await sample(msgs,{cache:false,context:contexto(),tools:wrappedTools,onText:u=>{live.textContent=u.text;afterChat()}});
     live.textContent=r.text+(r.truncated?'\n\n(Respuesta recortada. Pídemelo por partes.)':'');
     S.chat.push({role:'assistant',content:live.textContent});S.chat=S.chat.slice(-40);save();
+    if(toolRan&&inDrawer)render();
   }catch(err){
     S.chat.pop();
     const rawMsg=typeof err?.message==='string'?err.message.trim():'';
     const isGeneric=!rawMsg||rawMsg==='Sin conexión'||rawMsg==='Servicio no disponible';
     live.textContent=!isGeneric?rawMsg:err?.code==='rate_limited'?'Estoy recibiendo muchos mensajes. Espera un minuto y vuelve a escribirme.':err?.code==='not_granted'?'Necesito tu permiso para responder. Actívalo en el menú de permisos de esta app.':'No pude responder ahora. Intenta de nuevo en un momento.';
-  }finally{live.removeAttribute('id');sending=false;const s=$('#send');if(s)s.disabled=false;$('#bellDot').hidden=!avisos().length}
+  }finally{live.removeAttribute('id');sending=false;if(btn)btn.disabled=false;$('#bellDot').hidden=!avisos().length}
 }
 
 /* ---------- Market replay ---------- */

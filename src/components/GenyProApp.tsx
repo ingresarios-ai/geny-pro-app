@@ -91,6 +91,24 @@ export function GenyProApp({
               </a>
             ) : null}
 
+            <div
+              className="mode-switch"
+              id="modeSwitch"
+              role="group"
+              aria-label="Versión de la interfaz"
+              title="Cambia en cualquier momento entre la versión Original y la Nueva versión guiada"
+            >
+              <button type="button" data-ui="classic" aria-pressed="false">
+                Original
+              </button>
+              <button type="button" data-ui="guided" aria-pressed="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+                </svg>
+                Nueva
+              </button>
+            </div>
+
             <button className="ibtn" id="bell" aria-label="Avisos" aria-expanded="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0" />
@@ -144,6 +162,73 @@ export function GenyProApp({
 
         <main id="view" aria-live="polite" />
       </div>
+
+      <nav className="mob-tabs" id="mobTabs" aria-label="Navegación móvil" hidden />
+
+      <button
+        type="button"
+        className="geny-fab"
+        id="genyFab"
+        aria-label="Pregúntale a Geny"
+        aria-expanded="false"
+        aria-controls="genyDrawer"
+        hidden
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+          <path d="M4 5h16v11H9l-5 4z" />
+          <circle cx="9" cy="10.5" r=".9" fill="currentColor" />
+          <circle cx="12" cy="10.5" r=".9" fill="currentColor" />
+          <circle cx="15" cy="10.5" r=".9" fill="currentColor" />
+        </svg>
+        <span>Pregúntale a Geny</span>
+      </button>
+
+      <dialog className="geny-drawer" id="genyDrawer" aria-label="Mentora Mi Geny">
+        <div className="geny-drawer-scroller" id="genyDrawerScroller">
+          <div className="geny-drawer-sheet" id="genyDrawerSheet">
+            <div className="geny-drawer-head">
+              <div>
+                <strong>Mi Geny</strong>
+                <span className="muted" style={{ display: 'block', fontSize: 12 }}>
+                  Mentora IA · consulta o registra sin salir de tu vista
+                </span>
+              </div>
+              <div className="inline" style={{ gap: 6 }}>
+                <button
+                  type="button"
+                  className="btn sm ghost"
+                  id="genyDrawerFull"
+                  title="Abrir chat en pantalla completa"
+                >
+                  Expandir
+                </button>
+                <button
+                  type="button"
+                  className="x"
+                  id="genyDrawerClose"
+                  aria-label="Cerrar panel de Geny"
+                  autoFocus
+                  style={{ fontSize: 18, padding: '4px 8px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="chips geny-drawer-chips" id="dChips" />
+            <div className="msgs" id="dMsgs" />
+            <form className="compose" id="dCompose">
+              <textarea
+                id="dQ"
+                placeholder="Pregúntale a Geny o pídele registrar algo…"
+                aria-label="Mensaje para Geny"
+              />
+              <button className="btn" id="dSend" type="submit">
+                Enviar
+              </button>
+            </form>
+          </div>
+        </div>
+      </dialog>
 
       <div id="modalRoot" />
       <div className="toast" id="toast" role="status" hidden />
