@@ -298,7 +298,8 @@ async function callGoogleGemini(
     new Set([requestedModel, ...GEMINI_FALLBACK_MODELS].filter(Boolean))
   );
   const hasCustomBase = Boolean((process.env.GEMINI_BASE_URL || '').trim());
-  let useVertex = geminiKey.startsWith('AQ.');
+  // Try standard Gemini API (generativelanguage.googleapis.com) first — covers both AIza* and AQ.* Gemini-API keys
+  let useVertex = false;
   let vertexVersion: 'v1' | 'v1beta1' = 'v1';
   const triedModels = new Set<string>();
 
@@ -306,7 +307,7 @@ async function callGoogleGemini(
   let lastDetail = '';
   let lastModel = requestedModel;
 
-  // 1. Try primary model (and flip Vertex <-> AI Studio once if key type mismatches on 401)
+  // 1. Try primary model on Gemini API; if rejected (401/403), flip to Agent Platform / Vertex (v1 and v1beta1)
   triedModels.add(requestedModel);
   let firstAttempt = await postGeminiUrl(
     buildGeminiEndpoint(requestedModel, useVertex, vertexVersion),
@@ -324,66 +325,39 @@ async function callGoogleGemini(
     };
   }
 
-  if (firstAttempt.status === 401 && !hasCustomBase) {
-    const flipped = await postGeminiUrl(
-      buildGeminiEndpoint(requestedModel, !useVertex, vertexVersion),
-      geminiKey,
-      geminiBody
-    );
-    if (flipped.ok) {
-      return {
-        ok: true,
-        status: 200,
-        data: flipped.data,
-        resolvedModel: requestedModel,
-        detail: '',
-      };
-    }
-    if (flipped.status !== 401) {
-      useVertex = !useVertex;
-      firstAttempt = flipped;
-    }
-  }
+  if ((firstAttempt.status === 401 || firstAttempt.status === 403) && !hasCustomBase) {
+    const vertexVersions: ReadonlyArray<'v1' | 'v1beta1'> = requestedModel.includes('preview')
+      ? ['v1beta1']
+      : ['v1', 'v1beta1'];
 
-  // If Vertex Express returns 403 "are blocked", try the alternate Vertex API version (v1 <-> v1beta1) on GA models
-  if (
-    firstAttempt.status === 403 &&
-    useVertex &&
-    !hasCustomBase &&
-    /are blocked/i.test(firstAttempt.detail)
-  ) {
-    const initialEffectiveVersion = requestedModel.includes('preview') ? 'v1beta1' : vertexVersion;
-    const altVersion: 'v1' | 'v1beta1' = initialEffectiveVersion === 'v1' ? 'v1beta1' : 'v1';
-    for (const gaModel of ['gemini-3.8-flash', 'gemini-3.5-flash-lite']) {
-      const altAttempt = await postGeminiUrl(
-        buildGeminiEndpoint(gaModel, true, altVersion),
+    for (const v of vertexVersions) {
+      const flipped = await postGeminiUrl(
+        buildGeminiEndpoint(requestedModel, true, v),
         geminiKey,
         geminiBody
       );
-      if (altAttempt.ok) {
+      if (flipped.ok) {
         return {
           ok: true,
           status: 200,
-          data: altAttempt.data,
-          resolvedModel: gaModel,
+          data: flipped.data,
+          resolvedModel: requestedModel,
           detail: '',
         };
       }
-      if (altAttempt.status === 429) {
+      if (flipped.status === 429) {
         return {
           ok: false,
           status: 429,
           data: null,
-          resolvedModel: gaModel,
-          detail: altAttempt.detail,
+          resolvedModel: requestedModel,
+          detail: flipped.detail,
         };
       }
-      if (
-        altAttempt.status !== 403 &&
-        !isModelMissingOrRetired(altAttempt.status, altAttempt.detail)
-      ) {
-        vertexVersion = altVersion;
-        firstAttempt = altAttempt;
+      if (flipped.status !== 401 && flipped.status !== 403) {
+        useVertex = true;
+        vertexVersion = v;
+        firstAttempt = flipped;
         break;
       }
     }
